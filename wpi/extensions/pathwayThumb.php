@@ -195,9 +195,11 @@ function makePvjsObj( $pathway, $latestRevision=0, $label = '', $href = '', $alt
 	global $wgStylePath, $wgContLang, $wgUser;
 
 	$editorState = 'disabled';
+	/* disabled until pvjs Xref bug fixed
 	if ($wgUser->isLoggedIn() && $wgUser->isEmailConfirmed()){
 		$editorState = 'closed';
 	}
+	//*/
 
 	$gpml = $pathway->getFileURL(FILETYPE_GPML); 
 	$img = $pathway->getImage();

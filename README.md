@@ -1,13 +1,42 @@
-This is the official repository for the [WikiPathways website](www.wikipathways.org).
+Current repository for the WikiPathways web site
+====
+This repository contains the code and development history of the main web site for the WikiPathways project:
+[wikipathways.org](http://wikipathways.org). Built upon MediaWiki, 
+the site includes numerous custom extensions, javascript, skins and hacks.
 
-### Development
-**Branches**
+Developers
+---
+If you are in the development team, you should have write access to this repository. If you are an external developer, 
+feel free to clone and make pull requests.
 
-* Master - the production code; should match what is live
-* Dev - active development of quick features and bug fixes
-* SSL - temporary branch to work out changes required for SSL certification to take hold
+We have a development instance of WikiPathways always available at [dev.wikipathways.org](http://dev.wikipathways.org) that 
+is running the ```dev``` branch of this repo.  If you are in the development team, feel free to switch this instance to ```feature*``` branches
+temporarily for testing, but please restore the instance to the ```dev``` branch when you are done.
 
-Start new branches when you want to develop a feature or bug fix over a longer period of time; then merge with ```Dev```.
+**Branching strategy**
+
+When making decisions about how and when to branch, consider the following points:
+* The ```master``` branch should always reflect the current deployable state of the site.
+* Between releases, most development can be pushed directly to the ```dev``` branch.
+* For major features being developed over a week or longer, consider creating a ```feature*``` branch off of ```dev``` to be merged back 
+into ```dev``` when complete.
+* Provide an informative name for your ```feature*``` branch, e.g., ```feature-new-search```.
+* At release time, we will merge ```dev``` back into ```master``` and provide a milestone number in the comment, e.g., *Milestone 45*. 
+It should be easy to track the release history via the ```master``` branch log.
+* After releases, we may deleted ```feature*``` branches, but the ```dev``` branch will live on... forever!
+
+```
+              Milstone 45 (minor release)            Milestone 46 (major feature release)
+                      |                                       |
+master -------------------------------------------------------------->
+          \         /                                       /
+           dev ------------------------------------------------------>
+                           \                      /
+                            feature-new-search ---
+
+```
+
+
 
 ---
-Old repo: http://svn.bigcat.unimaas.nl/wikipathways/
+Old Repo: http://svn.bigcat.unimaas.nl/wikipathways/

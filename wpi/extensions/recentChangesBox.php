@@ -141,11 +141,11 @@ class RecentChangesBox {
 		$titleLink = $this->titleLink($title);
 
 		if($row->rc_new) {
-			$icon = SITE_URL . "/skins/common/images/comment_add.png";
+			$icon = "/skins/common/images/comment_add.png";
 		} else if(substr($row->rc_comment, 0, strlen(Pathway::$DELETE_PREFIX)) == Pathway::$DELETE_PREFIX) {
-			$icon = SITE_URL . "/skins/common/images/comment_remove.png";
+			$icon = "/skins/common/images/comment_remove.png";
 		} else {
-			$icon = SITE_URL . "/skins/common/images/comment_edit.png";
+			$icon = "/skins/common/images/comment_edit.png";
 		}
 		$comment = htmlentities($row->rc_comment);
 		$img = "<img src=\"$icon\" title=\"{$comment}\"></img>";

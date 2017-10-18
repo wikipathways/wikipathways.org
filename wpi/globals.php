@@ -21,7 +21,7 @@ $host = isset( $_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : "wikipathways.or
 $wpiScriptPath = realpath(dirname(__FILE__));
 $wpiScript = "$wpiScriptPath/$wpiScriptFile"; 
 $wpiTmpPath = "$wpiScriptPath/$wpiTmpName";
-$siteURL = "http://$host/$wgScriptPath";
+$siteURL = "https://$host/$wgScriptPath";
 $wpiURL = "$siteURL/$wpiPathName";
 $wpiCachePath = "$wpiScriptPath/$wpiCacheName";
 

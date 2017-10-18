@@ -573,7 +573,7 @@ class Pathway {
 		if($updateCache) {
 			$this->updateCache($fileType);
 		}
-		return "http://" . $_SERVER['HTTP_HOST'] . wfLocalFile($this->getFileName($fileType))->getUrl();
+		return $wgScriptPath . wfLocalFile($this->getFileName($fileType))->getUrl();
 	}
 
 	/**

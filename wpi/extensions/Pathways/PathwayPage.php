@@ -1,10 +1,15 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
+# TODO can we get rid of this? We used to use it for the Java applet, but
+# we're not using that anymore.
 $wgHooks['BeforePageDisplay'][] = array('addPreloaderScript');
 
 function renderPathwayPage(&$parser, &$text, &$strip_state) {
-	global $wgUser, $wgRequest;
+	global $wgUser, $wgRequest, $wgOut;
 
 	$title = $parser->getTitle();
 	$oldId = $wgRequest->getVal( "oldid" );
@@ -20,6 +25,16 @@ function renderPathwayPage(&$parser, &$text, &$strip_state) {
 			$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 			$page = new PathwayPage($pathway);
 			$text = $page->getContent();
+			$jsonData = $pathway->getJSON();
+			$jsonDataScript = <<<SCRIPT
+<script type="text/javascript">
+	console.log('loading pathwayAsJSON...');
+	window.pathwayAsJSON = {$jsonData};
+	console.log('pathwayAsJSON');
+	console.log(pathwayAsJSON);
+</script>
+SCRIPT;
+			$wgOut->addScript($jsonDataScript);
 		} catch(Exception $e) { //Return error message on any exception
 			$text = <<<ERROR
 = Error rendering pathway page =
@@ -247,8 +262,10 @@ if (window.attachEvent) window.attachEvent("onload", sfHover);
 </script>
 SCRIPT;
 $wgOut->addScript($script);
+
 return $dropdown;
 	}
+
 	static function formatPubMed($text) {
 		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
 		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {

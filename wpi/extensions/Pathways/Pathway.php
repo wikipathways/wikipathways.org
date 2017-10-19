@@ -536,6 +536,14 @@ class Pathway {
 	}
 
 	/**
+	 * Get the JSON for this pathway, as a string (the active revision will be
+	 * used, see Pathway::getActiveRevision)
+	 */
+	public function getJson() {
+		return $this->getPathwayData()->getJson();
+	}
+
+	/**
 	 * Check if the given file type is valid (a pathway can
 	 * be converted to this file type)
 	 */

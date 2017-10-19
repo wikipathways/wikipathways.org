@@ -20,6 +20,7 @@ function renderPathwayImage( &$parser, $pwTitleEncoded, $width = 0, $align = '',
 	$latestRevision = 0;
 	try {
 		$pathway = Pathway::newFromTitle($pwTitle);
+		$identifier = $pathway->getIdentifier();
 		$revision = $wgRequest->getVal('oldid');
 		if($revision) {
 			$pathway->setActiveRevision($revision);
@@ -52,12 +53,48 @@ function renderPathwayImage( &$parser, $pwTitleEncoded, $width = 0, $align = '',
 		if (preg_match("/Pathway\:WP\d+/", $href)){
 			$output = makeThumbLinkObj($pathway, $caption, $href, $tooltip, $align, $id, $width);
 		} else {
-			$output = makePvjsObj($pathway, '0', $caption, $href, $tooltip, $align, $id, $width);
+			# the original
+			#$output = makePvjsObj($pathway, '0', $caption, $href, $tooltip, $align, $id, $width);
+
+			# my attempts at displaying an in-line SVG
+			$svg_path="http://dev.wikipathways.org/cache/svgs/" . $identifier . ".svg";
+
+			# these work, but they are not in-line, which is needed for react to make them dynamic
+			#$output = "<img src=\"". $svg_path . "\" />";
+			#$output = "<object type=\"image/svg+xml\" data=\"". $svg_path . "\" />";
+
+			# this is a kludge
+			#$output = '<iframe style="width: 100%; min-height: 600px; border: none;" src="'. $svg_path . '" ></iframe>';
+			$params = $_GET;
+			$params["id"] = $identifier;
+			$widget_path = "/wpi/PathwayWidget.php?" . http_build_query($params);
+			$output = '<iframe style="width: 100%; min-height: 600px; border: none;" src="'. $widget_path . '" ></iframe>';
+
+			# none of these work
+			#$output = simplexml_load_file($svg_path)->saveXML();
+			#echo simplexml_load_file($svg_path)->saveXML();
+			#$output = "<div>" . file_get_contents($svg_path) . "</div>";
+/*
+			$svg_file = file_get_contents($svg_path);
+			$find_string   = '<svg';
+			$position = strpos($svg_file, $find_string);
+
+			$svg_file_new = substr($svg_file, $position);
+
+			$output = html_entity_decode("<div style='width:100%; height:100%;' >" . $svg_file_new . "</div>");
+//*/
+/*
+			$doc = new DOMDocument();
+			$doc->loadXML($svg_path);
+			$svg = $doc->getElementsByTagName('svg');
+			$output = $svg->item(0)->C14N();
+//*/
 		}
 
 	} catch(Exception $e) {
 		return "invalid pathway title: $e";
 	}
+	#return $parser->insertStripItem( $output, $parser->mStripState );
 	return array($output, 'isHTML'=>1, 'noparse'=>1);
 }
 

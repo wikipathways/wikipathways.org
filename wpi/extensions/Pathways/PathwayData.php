@@ -23,10 +23,23 @@ class PathwayData {
 	}
 
 	/**
-	 * Gets the SimpleXML representation of the GPML code
+	 * Gets the SimpleXML representation of the GPML code,
+	 * as a string.
 	 */
 	function getGpml() {
 		return $this->gpml;
+	}
+
+	/**
+	 * Gets the JSON representation of the GPML code,
+	 * formatted to match the structure of SVG,
+	 * as a string.
+	 * TODO: we aren't caching the JSON
+	 */
+	public function getJson() {
+		$gpmlLocation = $this->pathway->getFileLocation('gpml', false);
+		$identifier = $this->pathway->getIdentifier();
+		return shell_exec('/bin/cat "' . $gpmlLocation . '" | /nix/var/nix/profiles/default/bin/gpml2pvjson --id "http://identifiers.org/wikipathways/' . $identifier . '" --pathway-version "77754"');
 	}
 
 	/**
@@ -219,6 +232,7 @@ class PathwayData {
 			}
 		}
 	}
+
 }
 
 class Interaction {

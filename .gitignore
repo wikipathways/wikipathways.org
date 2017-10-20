@@ -1,5 +1,7 @@
 pass.php
 images
+cache
+wpi/cache
 *~
 \#*#
 .#*

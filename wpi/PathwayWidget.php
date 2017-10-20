@@ -183,15 +183,19 @@ if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorStrin
 <title>WikiPathways Pathway Viewer</title>
 </head>
 <body>
+<!--
 	<div class="kaavio-container-container" style="width: 100%; height: 100%; margin: 0px; padding: 0px;">
 		<div class="kaavio-container">
 			<?php
+/*
 			$unified_cache_path = dirname(__FILE__) . "/../unified";
 			$unified_svg_path = $unified_cache_path . '/' . $identifier . ".svg";
-			echo file_get_contents($unified_svg_path);
+			#echo file_get_contents($unified_svg_path);
+//*/
 			?>
 		</div>
 	</div>
+-->
 	<?php
 	// We only show the "View at WikiPathways" image link when we're not at WikiPathways.
 	if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == false) {

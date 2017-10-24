@@ -84,7 +84,7 @@ class PathwayPage {
 		if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == true) {
 		}
 		//*/
-		$componentRendererByNameMap = array(
+		$rendererBySectionMap = array(
 			"navbars" => function($display) {
 				// personal, title, left navbar, actions
 				if ($display) {
@@ -190,7 +190,7 @@ class PathwayPage {
 				}
 			}
 		);
-		$componentNamesByView = array(
+		$sectionsByView = array(
 			"normal" => [
 				"navbars",
 				"privacy-status",
@@ -214,13 +214,12 @@ class PathwayPage {
 			]
 		);
 		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
-		$enabledComponentNames = $componentNamesByView[$view];
+		$enabledSections = $sectionsByView[$view];
 		$text = '';
-		foreach($componentRendererByNameMap as $componentName => $componentRenderer) {
-			$componentContent = $componentRenderer(in_array($componentName, $enabledComponentNames));
-			//$componentRenderer = $componentRendererByNameMap[$componentName];
-			if (isset($componentContent)) {
-				$text .= $componentContent;
+		foreach($rendererBySectionMap as $section => $renderer) {
+			$rendered = $renderer(in_array($section, $enabledSections));
+			if (isset($rendered)) {
+				$text .= $rendered;
 			}
 		}
 		return $text;

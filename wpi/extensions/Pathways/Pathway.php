@@ -538,9 +538,17 @@ class Pathway {
 	/**
 	 * Get the JSON for this pathway, as a string (the active revision will be
 	 * used, see Pathway::getActiveRevision)
+	 * Gets the JSON representation of the GPML code,
+	 * formatted to match the structure of SVG,
+	 * as a string.
+	 * TODO: we aren't caching the JSON
 	 */
 	public function getJson() {
-		return $this->getPathwayData()->getJson();
+		$gpmlLocation = $this->getFileLocation('gpml', false);
+		$identifier = $this->getIdentifier();
+		//$version = $this->revision;
+		$version = $this->getActiveRevision();
+		return shell_exec('/bin/cat "' . $gpmlLocation . '" | /nix/var/nix/profiles/default/bin/gpml2pvjson --id "http://identifiers.org/wikipathways/' . $identifier . '" --pathway-version "' . $version . '"');
 	}
 
 	/**

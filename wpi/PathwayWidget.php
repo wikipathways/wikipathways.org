@@ -10,52 +10,6 @@ You can include a pathway viewer in another website using an iframe:
 
 <iframe src ="http://www.wikipathways.org/pathways/WP4?diagram-only=true" width="500" height="500" style="overflow:hidden;"></iframe>
 */
-require_once('wpi.php');
-require_once('extensions/PathwayViewer/PathwayViewer.php');
-header("X-XSS-Protection: 0");
-?>
-<!DOCTYPE HTML>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<style  type="text/css">
-	a#wplink {
-	text-decoration:none;
-	font-family:serif;
-	color:black;
-	font-size:12px;
-	}
-	#logolink {
-		float:right;
-		top:-20px;
-		left: -10px;
-		position:relative;
-		z-index:2;
-		opacity: 0.5;
-	}
-	html, body {
-		width:100%;
-		height:100%;
-	}
-	#pvjs-widget {
-		top:0;
-		left:0;
-		font-size:12px;
-		width:100%;
-		height:inherit;
-	}
-</style>
-<?php
-//Initialize javascript
-echo '<script type="text/javascript" src="' . $jsJQuery . '"></script>' . "\n";
-
-$identifier = isset($_REQUEST['identifier']) ? $_REQUEST['identifier'] : $_REQUEST['id'];
-$version = isset($_REQUEST['version']) ? $_REQUEST['version'] : isset($_REQUEST['rev']) ? $_REQUEST['rev'] : 0;
-
-$pathway = Pathway::newFromTitle($identifier);
-if($version) {
-		$pathway->setActiveRevision($version);
-}
 
 /*
 The widget used this format for highlighting up until 2017:
@@ -119,11 +73,23 @@ http://dev.wikipathways.org/wpi/PathwayWidget.php?id=WP710&xref[]=324,Entrez%20G
 http://dev.wikipathways.org/wpi/PathwayWidget.php?id=WP710&purple=PC,Entrez Gene:324,HMDB:HMDB00193
 */
 
+require_once('wpi.php');
+parse_str($_SERVER['QUERY_STRING'], $params);
+
+$identifier = isset($params['identifier']) ? $params['identifier'] : $params['id'];
+$version = isset($params['version']) ? $params['version'] : isset($params['rev']) ? $params['rev'] : 0;
+
 # NOTE: we convert any query params that still use the old highlighter format
 #       to the new format in order to maintain backwards compatibility.
-$labelOrLabels = isset($_REQUEST['label']) ? $_REQUEST['label'] : null;
-$xrefOrXrefs = isset($_REQUEST['xref']) ? $_REQUEST['xref'] : null;
-$colorString = isset($_REQUEST['colors']) ? $_REQUEST['colors'] : null;
+$labelOrLabels = isset($params['label']) ? $params['label'] : null;
+$xrefOrXrefs = isset($params['xref']) ? $params['xref'] : null;
+$colorString = isset($params['colors']) ? $params['colors'] : null;
+
+unset($params['id']);
+unset($params['rev']);
+unset($params['colors']);
+unset($params['xref']);
+unset($params['label']);
 
 if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorString)) {
 	if (!is_null($labelOrLabels)) {
@@ -160,10 +126,6 @@ if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorStrin
 		array_push($selectors, $dbName . ":" . $dbId);
 	}
 
-	parse_str($_SERVER['QUERY_STRING'], $params);
-	unset($params['colors']);
-	unset($params['xref']);
-	unset($params['label']);
 	$colors = explode(",",$colorString);
 	if (count($selectors) != count($colors)) {
 		// if color list is not the same length as selector list, then just use first color
@@ -174,55 +136,9 @@ if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorStrin
 			$params[$colors[$i]] = $selectors[$i];
 		}
 	}
-	$paramString = http_build_query($params);
-	echo '<script>' .
-		'history.replaceState("", "", "?' . $paramString . '");' .
-	'</script>';
-}
-?>
-<title>WikiPathways Pathway Viewer</title>
-</head>
-<body>
-<!--
-	<div class="kaavio-container-container" style="width: 100%; height: 100%; margin: 0px; padding: 0px;">
-		<div class="kaavio-container">
-			<?php
-/*
-			$unified_cache_path = dirname(__FILE__) . "/../unified";
-			$unified_svg_path = $unified_cache_path . '/' . $identifier . ".svg";
-			#echo file_get_contents($unified_svg_path);
-//*/
-			?>
-		</div>
-	</div>
--->
-	<?php
-	// We only show the "View at WikiPathways" image link when we're not at WikiPathways.
-	if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == false) {
-		echo '<div style="position:absolute;height:0px;overflow:visible;bottom:0;left:15px;">' .
-			'<div id="logolink">' .
-				'<a id="wplink" target="top" href="'.$pathway->getFullUrl().'">View at ' .
-				'<img style="border:none" src="' . $wgScriptPath . '/skins/common/images/wikipathways_name.png" /></a>' .
-			'</div>' .
-		'</div>';
-	}
-	?>
-	<script src="/wpi/js/kaavio.js"></script>
 
-	<?php
-	$unified_json_path = $unified_cache_path . '/' . $identifier . ".json";
-	$unified_json = file_get_contents($unified_json_path);
-	?>
-	<script>
-		var pvjsInput = <?php echo $unified_json ?>;
-		pvjsInput.onReady = function() {};
-		ReactDOM.render(
-			React.createElement(
-				Kaavio.Kaavio,
-				pvjsInput
-			),
-			document.querySelector('.kaavio-container-container')
-		);
-	</script>
-</body>
-</html>
+}
+$paramString = (count($params) == 0 ? "" : ("?" . http_build_query($params))) ;
+header("Location: /index.php/Pathway:" . $identifier . $paramString);
+exit();
+?>

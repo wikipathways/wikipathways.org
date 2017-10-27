@@ -118,7 +118,7 @@ class TissueAnalyzer extends SpecialPage {
 						document.getElementById("pwyname").innerHTML="<b>Selected pathway:</b> " + pathway_name;
 						$("#my-legend").attr("style","");
 						$("#path_viewer").attr("src",
-						"http://www.wikipathways.org/wpi/PathwayWidget.php?id="+id+genes);
+						"https://www.wikipathways.org/wpi/PathwayWidget.php?id="+id+genes);
 						$("#path_viewer").attr("style","overflow:hidden;");
 					}
 				</script>');
@@ -586,7 +586,7 @@ HTML;
 				</div>								
 				<div id="pwyname" '.$styleViewer.'><b>Selected pathway:</b> Fatty Acid Biosynthesis</div>
 				<div style="display:inline-block;overflow:visible;width:100%"><iframe id="path_viewer" 
-					src ="http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP357&label[]=ACSL4&label[]=ACSL3
+					src ="https://www.wikipathways.org/wpi/PathwayWidget.php?id=WP357&label[]=ACSL4&label[]=ACSL3
 								&label[]=ACACA&label[]=ECHDC1&label[]=PECR&label[]=MECR&label[]=ACSL6&label[]=ECHDC2&label[]=ACSL5&label[]=DECR
 								1&label[]=ACAA2&label[]=ACLY&label[]=ACSL1&label[]=ECH1&label[]=ACACB&label[]=ECHS1&label[]=PC&label[]=ACAS2&label[]=FASN
 								&label[]=ECHDC3&label[]=HADHSC&label[]=SCD&colors=%23B0B0B0,%23B0B0B0,%23B0B0B0,%23B0B0B0,%23B0B0B0,%23B0B0B0,

@@ -317,6 +317,6 @@ ul.pathwayhistory {
 
 .searchboxBgImage {
 width: 90px;
-background:url('http://www.wikipathways.org/skins/common/images/search.png') no-repeat;
+background:url('/skins/common/images/search.png') no-repeat;
 padding-left:20px;
 }

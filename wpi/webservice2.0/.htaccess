@@ -6,9 +6,11 @@ RewriteEngine on
 #RewriteRule / http://webservice.wikipathways.org/ui/dist/ [R]
 
 
-RewriteCond %{REQUEST_URI}%{QUERY_STRING} ^/wpi/webservice2.0/index.php$
-#RewriteCond %{THE_REQUEST} ^/wpi/webservicetest/index.php$
-RewriteRule ^(.*)$ /wpi/webservice2.0/ui/dist/ [NC,L]
+#RewriteCond %{REQUEST_URI}%{QUERY_STRING} ^/wpi/webservice2.0/index.php$
+##RewriteCond %{THE_REQUEST} ^/wpi/webservicetest/index.php$
+#RewriteRule ^(.*)$ /wpi/webservice2.0/ui/ [NC,L]
+#RewriteRule ^(.*)$ /wpi/webservice2.0/ui/ [NC,L]
+#Redirect / ui/
 
 RewriteCond %{QUERY_STRING} ^(.*)$
 ##RewriteRule ^([a-zA-Z]+)$ /wpi/webservicetest/index.php?method=$1&%1 [L]
@@ -17,7 +19,7 @@ RewriteRule ^([a-zA-Z]+)$ "/wpi/webservice2.0/index.php?method=$1&%1" [L]
 
 
 
-#RewriteRule ^index.php$ ui/dist/
+#RewriteRule ^index.php$ ui/
 #RewriteRule ^/wpi/webservicetest/index.html$  /wpi/webservicetest/index.html  [R]
 #RewriteRule ^/(.+)\?(.+)$ index.php?method=$1&$2 [L]
 #RewriteRule ^/wpi/(.+)/(.+)$ index.php [L]

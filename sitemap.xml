@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!-- MediaWiki - Google Sitemaps - v0.3 -->
 <!-- 3697 wikipages found. -->
-<!-- Created on 2017-10-28T14:01:01+00:00 -->
+<!-- Created on 2017-11-01T14:01:01+00:00 -->
 <urlset xmlns="http://www.google.com/schemas/sitemap/0.84">
+	<url>
+		<loc>https://www.wikipathways.org/index.php/Pathway:WP1422</loc>
+		<lastmod>2017-11-01T07:52:35+00:00</lastmod>
+		<changefreq>daily</changefreq>
+		<priority>1</priority>
+	</url>
+	<url>
+		<loc>https://www.wikipathways.org/index.php/Pathway:WP4</loc>
+		<lastmod>2017-10-28T21:33:41+00:00</lastmod>
+		<changefreq>daily</changefreq>
+		<priority>1</priority>
+	</url>
 	<url>
 		<loc>https://www.wikipathways.org/index.php/PathwayWidget</loc>
 		<lastmod>2017-10-27T23:03:30+00:00</lastmod>
@@ -682,12 +694,6 @@
 		<priority>1</priority>
 	</url>
 	<url>
-		<loc>https://www.wikipathways.org/index.php/Pathway:WP4</loc>
-		<lastmod>2017-09-28T19:53:44+00:00</lastmod>
-		<changefreq>daily</changefreq>
-		<priority>1</priority>
-	</url>
-	<url>
 		<loc>https://www.wikipathways.org/index.php/Pathway:WP1229</loc>
 		<lastmod>2017-09-28T17:53:59+00:00</lastmod>
 		<changefreq>daily</changefreq>
@@ -948,12 +954,6 @@
 	<url>
 		<loc>https://www.wikipathways.org/index.php/Pathway:WP4142</loc>
 		<lastmod>2017-09-08T11:02:09+00:00</lastmod>
-		<changefreq>daily</changefreq>
-		<priority>1</priority>
-	</url>
-	<url>
-		<loc>https://www.wikipathways.org/index.php/Pathway:WP1422</loc>
-		<lastmod>2017-09-08T10:53:45+00:00</lastmod>
 		<changefreq>daily</changefreq>
 		<priority>1</priority>
 	</url>

@@ -5,6 +5,7 @@ wpi/cache
 wpi/bin/TissueAnalyzer/update/TA_log.txt
 wpi/bin/TissueAnalyzer/update/derby.log
 wpi/data/TissueAnalyzer/Curated/*
+sitemap.xml
 *~
 \#*#
 .#*

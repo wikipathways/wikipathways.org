@@ -214,7 +214,7 @@ function makePvjsObj( $pathway, $latestRevision=0, $label = '', $href = '', $alt
 	$s = '<script type="text/javascript">';
 	$s .= 'window.wikipathwaysUsername = "' . $wgUser->mName . '";';
 	$s .= '</script>';
-	
+
 	$s .= "<div id=\"{$id}\" class=\"thumb t{$align}\"><div class=\"thumbinner\" style=\"width: 900px; padding: 3px 6px 30px 3px; height: 635px; min-width: 700px; max-width: 100%;\">";
 	$thumbUrl = $img->getViewURL();
 //style="min-width:'.$boxwidth.'px; min-height:'.$boxheight.'px; height:'.$boxheight.'px; ">
@@ -222,10 +222,10 @@ function makePvjsObj( $pathway, $latestRevision=0, $label = '', $href = '', $alt
 				<wikipathways-pvjs id="pvjs-container"
 				    class="wikipathways-pvjs"
 				    resource="http://identifiers.org/wikipathways/'.$identifier.'"
-				    version='.$version.'"
-				    src="'.$gpml.'"                                                                                                                                               
-				    resource="'.$resource.'"                                                                                                                                               
-				    version="'.$latestRevision.'"                                                                                                                                               
+				    version="'.$version.'"
+				    src="'.$gpml.'"
+				    resource="'.$resource.'"
+				    version="'.$latestRevision.'"
 				    display-errors="true"
 				    display-warnings="true"
 				    manual-render="true"

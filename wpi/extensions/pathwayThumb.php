@@ -225,7 +225,6 @@ function makePvjsObj( $pathway, $latestRevision=0, $label = '', $href = '', $alt
 				    version="'.$version.'"
 				    src="'.$gpml.'"
 				    resource="'.$resource.'"
-				    version="'.$latestRevision.'"
 				    display-errors="true"
 				    display-warnings="true"
 				    manual-render="true"

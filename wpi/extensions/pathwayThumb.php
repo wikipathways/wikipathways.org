@@ -207,7 +207,6 @@ function makePvjsObj( $pathway, $latestRevision=0, $label = '', $href = '', $alt
 
 	$identifier = $pathway->getIdentifier();
 	$version = $pathway->getLatestRevision(); 
-	$resource = 'http://identifiers.org/wikipathways/WP4';
 
 	$textalign = $wgContLang->isRTL() ? ' style="text-align:right"' : '';
 
@@ -224,7 +223,6 @@ function makePvjsObj( $pathway, $latestRevision=0, $label = '', $href = '', $alt
 				    resource="http://identifiers.org/wikipathways/'.$identifier.'"
 				    version="'.$version.'"
 				    src="'.$gpml.'"
-				    resource="'.$resource.'"
 				    display-errors="true"
 				    display-warnings="true"
 				    manual-render="true"

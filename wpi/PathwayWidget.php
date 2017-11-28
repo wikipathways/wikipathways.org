@@ -8,7 +8,7 @@ This page will display the interactive pathway viewer for a given pathway. It ta
 
 You can include a pathway viewer in another website using an iframe:
 
-<iframe src ="http://www.wikipathways.org/pathways/WP4?diagram-only=true" width="500" height="500" style="overflow:hidden;"></iframe>
+<iframe src ="http://www.wikipathways.org/pathways/WP4?view=widget" width="500" height="500" style="overflow:hidden;"></iframe>
 */
 
 /*
@@ -29,7 +29,7 @@ where:
 	TextContent: the name or label of the entity
 
 In 2017, we switched to this format:
-http://www.wikipathways.org/pathways/WP4?diagram-only=true&<color>=<target>[,<target>...][&<color>=<target>[,<target>...]][&version=<VersionNumber>]
+http://www.wikipathways.org/pathways/WP4?view=widget&<color>=<target>[,<target>...][&<color>=<target>[,<target>...]][&version=<VersionNumber>]
 
 where:
 	color: a name, e.g., red, or a hexadecimal, e.g., FF0000 (no "#")
@@ -48,26 +48,26 @@ where:
 		TextContent: the name or label of the entity (URL-encoded)
 
 http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP87 =>
-http://www.wikipathways.org/pathways/WP4?diagram-only=true
+http://www.wikipathways.org/pathways/WP4?view=widget
 
 http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP87&rev=7772 =>
-http://www.wikipathways.org/pathways/WP4?diagram-only=true&version=7772
+http://www.wikipathways.org/pathways/WP4?view=widget&version=7772
 
 http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&label=CRH&xref=8525,Entrez%20Gene&colors=green,blue =>
-http://www.wikipathways.org/pathways/WP4?green=CRH&blue=ncbigene:8525&diagram-only=true
+http://www.wikipathways.org/pathways/WP4?green=CRH&blue=ncbigene:8525&view=widget
 
 
 http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&label=APC&xref=HMDB00193,HMDB&colors=green,blue =>
-http://www.wikipathways.org/pathways/WP4?green=APC&blue=HMDB:HMDB00193&diagram-only=true
+http://www.wikipathways.org/pathways/WP4?green=APC&blue=HMDB:HMDB00193&view=widget
 
 http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&label[]=APC&label[]=TP53&label[]=ATP&colors=green,red,blue =>
-http://www.wikipathways.org/pathways/WP4?green=APC&red=TP53&blue=ATP&diagram-only=true
+http://www.wikipathways.org/pathways/WP4?green=APC&red=TP53&blue=ATP&view=widget
 
 http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&xref[]=324,Entrez Gene&xref[]=HMDB00193,HMDB&colors=purple =>
-http://www.wikipathways.org/pathways/WP4?purple=Entrez Gene:324,HMDB:HMDB00193&diagram-only=true
+http://www.wikipathways.org/pathways/WP4?purple=Entrez Gene:324,HMDB:HMDB00193&view=widget
 
 http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&xref[]=324,Entrez Gene&xref=HMDB00193,HMDB&colors=purple&rev=7772 =>
-http://www.wikipathways.org/pathways/WP4?purple=Entrez Gene:324,HMDB:HMDB00193&version=7772&diagram-only=true
+http://www.wikipathways.org/pathways/WP4?purple=Entrez Gene:324,HMDB:HMDB00193&version=7772&view=widget
 
 http://dev.wikipathways.org/wpi/PathwayWidget.php?id=WP710&xref[]=324,Entrez%20Gene&xref[]=HMDB00193,HMDB&colors=purple&label=PC =>
 http://dev.wikipathways.org/wpi/PathwayWidget.php?id=WP710&purple=PC,Entrez Gene:324,HMDB:HMDB00193
@@ -90,6 +90,8 @@ unset($params['rev']);
 unset($params['colors']);
 unset($params['xref']);
 unset($params['label']);
+
+$params["view"] = "widget";
 
 if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorString)) {
 	if (!is_null($labelOrLabels)) {

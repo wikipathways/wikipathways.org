@@ -257,23 +257,38 @@ class PathwayPage {
 		global $wgUser, $wgRequest, $wgOut;
 		$pathway = $this->pathway;
 		$jsonData = $pathway->getJSON();
-		$wgOut->addHTML('<script type="text/javascript" src="/wpi/js/kaavio.js"></script>');
-		$kaavioInitScript = <<<SCRIPT
+		if (!$jsonData) {
+			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
+			return "<p>Note: only able to display static pathway diagram. Interactive diagram temporarily disabled for this pathway.</p><br>$pngPath";
+		}
+		$wgOut->addHTML('<script type="text/javascript" src="/wpi/js/pvjs/pvjs.js"></script>');
+		$diagramInitScript = <<<SCRIPT
 <script type="text/javascript">
+	if (window.hasOwnProperty("XrefPanel")) {
+	      XrefPanel.show = function(elm, id, datasource, species, symbol) {
+		jqelm = $(elm);
+		if(XrefPanel.currentTriggerDialog) {
+		  XrefPanel.currentTriggerDialog.dialog("close");
+		  XrefPanel.currentTriggerDialog.dialog("destroy");
+		}
+		jqcontent = XrefPanel.create(id, datasource, species, symbol);
+		var x = jqelm.offset().left - $(window).scrollLeft();
+		var y = jqelm.offset().top - $(window).scrollTop();
+		jqdialog = jqcontent.dialog({
+		  position: [x,y]
+		});
+		XrefPanel.currentTriggerDialog = jqdialog;
+	      }
+	}
+
 	var pvjsInput = $jsonData;
 	pvjsInput.onReady = function() {};
 	window.addEventListener('load', function() {
-		ReactDOM.render(
-			 ReactPublic.createElement(
-				 Kaavio.Kaavio,
-				 pvjsInput
-			 ),
-			 document.querySelector('.kaavio-container-container')
-		);
+		pvjs.Pvjs(".kaavioContainer", pvjsInput);
 	});
 </script>
 SCRIPT;
-		$wgOut->addHTML($kaavioInitScript);
+		$wgOut->addHTML($diagramInitScript);
 		$diagramContainer = $this->getDiagramContainer();
 		$finder = new DomXPath($diagramContainer);
 		return $finder->query("//div[@class='diagram-container']")->item(0)->C14N() . '<br>';
@@ -347,26 +362,20 @@ SCRIPT;
 
 	function getDiagramContainer() {
 		global $wgOut;
-		if (!isset($this->diagramContainer)) {
-			$diagramContainer = new DOMDocument("1.0","UTF-8");
-			$diagramContainerString = <<<TEXT
-<html><body>
-	<div class="diagram-container" style="width: 100%; height: 100%; min-height: 600px; margin: 0px; padding: 0px;">
-		<div class="kaavio-container-container" style="width: 100%; height: inherit; min-height: inherit; margin: 0px; padding: 0px;">
-			<div class="kaavio-container" style="width: 100%; height: inherit; min-height: inherit; margin: 0px; padding: 0px;">
-			</div>
-		</div>
-		<div id="diagram-footer"></div>
-	</div>
-</body></html> 
-TEXT;
 
-			$diagramContainer->loadHTML($diagramContainerString);
-			$this->diagramContainer = $diagramContainer;
-			$style = <<<STYLE
+		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
+		$height = $view == "normal" ? "600px" : "100%";
+
+		$style = <<<STYLE
 <style type="text/css">
-.kaavio-container, .kaavio-diagram {
-	width: inherit;
+.diagram-container {
+	width: 100%;
+	height: $height;
+	margin: 0px;
+	padding: 0px;
+}
+.kaavioContainer {
+	width: 100%;
 	height: inherit;
 	min-height: inherit;
 	margin: 0px;
@@ -374,7 +383,20 @@ TEXT;
 }
 </style>
 STYLE;
-			$wgOut->addHTML($style);
+		$wgOut->addHTML($style);
+		if (!isset($this->diagramContainer)) {
+			$diagramContainer = new DOMDocument("1.0","UTF-8");
+			$diagramContainerString = <<<TEXT
+<html><body>
+	<div class="diagram-container">
+		<div class="kaavioContainer"></div>
+		<div id="diagram-footer"></div>
+	</div>
+</body></html> 
+TEXT;
+
+			$diagramContainer->loadHTML($diagramContainerString);
+			$this->diagramContainer = $diagramContainer;
 			return $diagramContainer;
 		} else {
 			return $this->diagramContainer;

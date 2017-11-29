@@ -72,7 +72,7 @@ class PathwayPage {
 		"Download",
 		"Diagram",
 		"Description",
-		"CurationTags",
+		"QualityTags",
 		"OntologyTags",
 		"Bibliography",
 		"History",
@@ -89,7 +89,7 @@ class PathwayPage {
 			"EditCaption",
 			"Download",
 			"Description",
-			"CurationTags",
+			"QualityTags",
 			"OntologyTags",
 			"Bibliography",
 			"History",
@@ -271,7 +271,7 @@ TEXT;
 		return $warn;
 	}
 
-	function CurationTags() {
+	function QualityTags() {
 		$tags = "\n== Quality Tags ==\n" .
 			"<CurationTags></CurationTags>";
 		return $tags;
@@ -498,11 +498,11 @@ SCRIPT;
 	}
 
 	function History() {
-		return "{{Template:PathwayPage:History}}";
+		return "\n{{Template:PathwayPage:History}}";
 	}
 
 	function Xrefs() {
-		return "{{Template:PathwayPage:Xrefs}}";
+		return "\n{{Template:PathwayPage:Xrefs}}";
 	}
 
 	function LinkToFullPathwayPage() {

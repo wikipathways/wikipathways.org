@@ -8,6 +8,7 @@ $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
 # we're not using that anymore.
 $wgHooks['BeforePageDisplay'][] = array('addPreloaderScript');
 
+
 function renderPathwayPage(&$parser, &$text, &$strip_state) {
 	global $wgUser, $wgRequest, $wgOut;
 
@@ -24,7 +25,7 @@ function renderPathwayPage(&$parser, &$text, &$strip_state) {
 			}
 			$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 			$page = new PathwayPage($pathway);
-			$text = $page->getContent();
+			$text = $page->render();
 		} catch(Exception $e) { //Return error message on any exception
 			$text = <<<ERROR
 = Error rendering pathway page =
@@ -62,12 +63,52 @@ class PathwayPage {
 	private $pathway;
 	private $data;
 	static $msgLoaded = false;
+	static $sectionNames = array(
+		"Navbars",
+		"PrivateWarning",
+		"Title",
+		"AuthorInfo",
+		"EditCaption",
+		"Download",
+		"Diagram",
+		"Description",
+		"CurationTags",
+		"OntologyTags",
+		"Bibliography",
+		"History",
+		"Xrefs",
+		"LinkToFullPathwayPage"
+	);
+	static $sectionNamesByView = array(
+		"normal" => [
+			"Navbars",
+			"PrivateWarning",
+			"Title",
+			"AuthorInfo",
+			"Diagram",
+			"EditCaption",
+			"Download",
+			"Description",
+			"CurationTags",
+			"OntologyTags",
+			"Bibliography",
+			"History",
+			"Xrefs"
+		],
+		"widget" => [
+			"Diagram",
+			"LinkToFullPathwayPage"
+		]
+	);
 
 	function __construct($pathway) {
+		global $wgMessageCache;
+
 		$this->pathway = $pathway;
 		$this->data = $pathway->getPathwayData();
+		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
+		$this->view = $view;
 
-		global $wgMessageCache;
 		if(!self::$msgLoaded) {
 			$wgMessageCache->addMessages( array(
 					'private_warning' => '{{SERVER}}{{SCRIPTPATH}}/skins/common/images/lock.png This pathway will not be visible to other users until $DATE. ' .
@@ -75,162 +116,145 @@ class PathwayPage {
 				), 'en' );
 			self::$msgLoaded = true;
 		}
-	}
 
-	function getContent() {
-		$pathway = $this->pathway;
 		/* TODO keep this for anything?
 		// We only show the "View at WikiPathways" image link when we're not at WikiPathways.
 		if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == true) {
 		}
 		//*/
-		$rendererBySectionMap = array(
-			"navbars" => function($display) {
-				// personal, title, left navbar, actions
-				if ($display) {
-					// do nothing
-				} else {
-					$this->hideNavbars();
-				}
-			},
-			"privacy-status" => function($display) {
-				if ($display) {
-					return $this->privateWarning();
-				} else {
-					// do nothing
-				}
-			},
-			"title" => function($display) {
-				if ($display) {
-					return $this->titleEditor();
-				} else {
-					// do nothing
-				}
-			},
-			"authors" => function($display) {
-				if ($display) {
-					return '{{Template:AuthorInfo}}';
-				} else {
-					// do nothing
-				}
-			},
-			"edit" => function($display) {
-				if ($display) {
-					$this->addEditCaption();
-				} else {
-					// do nothing
-				}
-			},
-			"download" => function($display) {
-				if ($display) {
-					$this->addDownloadCaption();
-				} else {
-					// do nothing
-				}
-			},
-			"diagram" => function($display) {
-				if ($display) {
-					return $this->diagram();
-				} else {
-					// do nothing
-				}
-			},
-			"description" => function($display) {
-				if ($display) {
-					return $this->descriptionText();
-				} else {
-					// do nothing
-				}
-			},
-			"quality-tags" => function($display) {
-				if ($display) {
-					return $this->curationTags();
-				} else {
-					// do nothing
-				}
-			},
-			"ontology-tags" => function($display) {
-				if ($display) {
-					return $this->ontologyTags();
+	}
 
-				} else {
-					// do nothing
-				}
-			},
-			"bibliography" => function($display) {
-				if ($display) {
-					return $this->bibliographyText();
-				} else {
-					// do nothing
-				}
-			},
-			"history" => function($display) {
-				if ($display) {
-					// TODO this returns both history and xrefs
-					return '{{Template:PathwayPage:Bottom}}';
-				} else {
-					$this->hideHistory();
+	function appendToDiagramFooter($htmlString) {
+		$diagramContainer = $this->diagramContainer;
+		$diagramFooter = $diagramContainer->getElementById('diagram-footer');
+		$docFrag = $diagramContainer->createDocumentFragment();
+		$docFrag->appendXML($htmlString);
+		$diagramFooter->appendChild($docFrag);
+	}
 
-				}
-			},
-			"xrefs" => function($display) {
-				if ($display) {
-					// TODO this returns both history and xrefs. see "history" property above.
-					//return '{{Template:PathwayPage:Bottom}}';
-				} else {
-					$this->hideXrefs();
-
-				}
-			},
-			"view-at-wikipathways" => function($display) {
-				if ($display) {
-					$this->showViewAtWikiPathways();
-				} else {
-					// do nothing
-				}
-			}
-		);
-		$sectionsByView = array(
-			"normal" => [
-				"navbars",
-				"privacy-status",
-				"title",
-				"authors",
-				//*
-				"diagram",
-				"edit",
-				"download",
-				//*/
-				"description",
-				"quality-tags",
-				"ontology-tags",
-				"bibliography",
-				"history",
-				"xrefs"
-			],
-			"widget" => [
-				"diagram",
-				"view-at-wikipathways"
-			]
-		);
-		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
-		$enabledSections = $sectionsByView[$view];
-		$text = '';
-		foreach($rendererBySectionMap as $section => $renderer) {
-			$rendered = $renderer(in_array($section, $enabledSections));
-			if (isset($rendered)) {
-				$text .= $rendered;
+	static function formatPubMed($text) {
+		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
+		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {
+			foreach($ids[1] as $id) {
+				$text = str_replace($id, "[$link$id $id]", $text);
 			}
 		}
 		return $text;
 	}
 
-	function titleEditor() {
+	function render() {
+		global $wgOut;
+
+		$view = $this->view;
+		$enabledSectionNames = self::$sectionNamesByView[$this->view];
+
+		if (!in_array("Navbars", $enabledSectionNames)) {
+			//$wgOut->clearHTML();
+			$wgOut->setArticleBodyOnly(true);
+			//$wgOut->addHTML($this->diagram());
+
+			/*
+			$script = <<<SCRIPT
+	<script type="text/javascript">
+		window.addEventListener('DOMContentLoaded', function() {
+			var body = document.querySelector('body');
+			body.removeAttribute('class');
+			var globalWrapper = document.querySelector('#globalWrapper');
+			// if we wanted to keep the title and organism:
+			//var content = document.querySelector('#content');
+			var content = document.querySelector('.diagram-container');
+			content.setAttribute('class', '');
+			content.style.top = 0;
+			content.style.left = 0;
+			content.style.border = 0;
+			content.style.margin = 0;
+			content.style.padding = 0;
+			globalWrapper.replaceWith(content);
+		});
+	</script>
+	SCRIPT;
+			$wgOut->addScript($script);
+			//*/
+		}
+
+		if (!in_array("History", $enabledSectionNames)) {
+			$hideScript = <<<SCRIPT
+<script type="text/javascript">
+	window.addEventListener('DOMContentLoaded', function() {
+		document.querySelectorAll('[name="History"], [name="History"] + h2, [name="History"] + h2 + table, , [name="History"] + h2 + table + form')
+			.forEach(function(el) {
+				el.style.visibility = 'hidden';
+			});
+	});
+</script>
+SCRIPT;
+			$wgOut->addScript($$hideScript);
+		}
+
+		$height = $view == "normal" ? "600px" : "100%";
+
+		$style = <<<STYLE
+<style type="text/css">
+.diagram-container {
+	width: 100%;
+	height: $height;
+	margin: 0px;
+	padding: 0px;
+}
+.kaavioContainer {
+	width: 100%;
+	height: inherit;
+	min-height: inherit;
+	margin: 0px;
+	padding: 0px;
+}
+</style>
+STYLE;
+		$wgOut->addHTML($style);
+
+		$pathway = $this->pathway;
+		$svgUnified = $pathway->getSvgUnified();
+		$diagramContainer = new DOMDocument("1.0","UTF-8");
+		$diagramContainerString = <<<TEXT
+<html><body>
+<div class="diagram-container">
+	<div class="kaavioContainer"></div>
+		<!-- TODO DOMDocument::loadHTML() appears unable to display SVG inline
+		$svgUnified
+		-->
+	<div id="diagram-footer"></div>
+</div>
+</body></html> 
+TEXT;
+
+		$diagramContainer->loadHTML($diagramContainerString);
+		/*
+		libxml_use_internal_errors(true);
+		libxml_clear_errors();
+		//*/
+
+		$this->diagramContainer = $diagramContainer;
+
+		$text = '';
+		$sectionNames = self::$sectionNames;
+		foreach($sectionNames as $sectionName) {
+			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
+				$text .= $this::$sectionName();
+			}
+		}
+		return $text;
+	}
+
+	function AuthorInfo() {
+		return '{{Template:AuthorInfo}}';
+	}
+
+	function Title() {
 		$title = $this->pathway->getName();
 		return "<pageEditor id='pageTitle' type='title'>$title</pageEditor>";
 	}
 
-	function privateWarning() {
+	function PrivateWarning() {
 		global $wgScriptPath, $wgLang;
 
 		$warn = '';
@@ -247,13 +271,13 @@ class PathwayPage {
 		return $warn;
 	}
 
-	function curationTags() {
+	function CurationTags() {
 		$tags = "\n== Quality Tags ==\n" .
 			"<CurationTags></CurationTags>";
 		return $tags;
 	}
 
-	function diagram() {
+	function Diagram() {
 		global $wgUser, $wgRequest, $wgOut;
 		$pathway = $this->pathway;
 		$jsonData = $pathway->getJson();
@@ -289,7 +313,7 @@ class PathwayPage {
 </script>
 SCRIPT;
 		$wgOut->addHTML($diagramInitScript);
-		$diagramContainer = $this->getDiagramContainer();
+		$diagramContainer = $this->diagramContainer;
 		$finder = new DomXPath($diagramContainer);
 		return $finder->query("//div[@class='diagram-container']")->item(0)->C14N() . '<br>';
 
@@ -299,7 +323,7 @@ SCRIPT;
 		//return $diagramContainer->saveHTML();
 	}
 
-	function descriptionText() {
+	function Description() {
 		//Get WikiPathways description
 		$content = $this->data->getWikiDescription();
 
@@ -334,7 +358,7 @@ SCRIPT;
 	}
 
 
-	function ontologyTags() {
+	function OntologyTags() {
 		global $wpiEnableOtag;
 		if($wpiEnableOtag) {
 			$otags = "\n== Ontology Terms ==\n" .
@@ -344,7 +368,7 @@ SCRIPT;
 	}
 
 
-	function bibliographyText() {
+	function Bibliography() {
 		global $wgUser;
 
 		$out = "<pathwayBibliography></pathwayBibliography>";
@@ -360,63 +384,6 @@ SCRIPT;
 			//"$out</div>\n{{#editApplet:bibEdit|bibliography|0||bibliography|0|250px}}";
 	}
 
-	function getDiagramContainer() {
-		global $wgOut;
-
-		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
-		$height = $view == "normal" ? "600px" : "100%";
-
-		$style = <<<STYLE
-<style type="text/css">
-.diagram-container {
-	width: 100%;
-	height: $height;
-	margin: 0px;
-	padding: 0px;
-}
-.kaavioContainer {
-	width: 100%;
-	height: inherit;
-	min-height: inherit;
-	margin: 0px;
-	padding: 0px;
-}
-</style>
-STYLE;
-		$wgOut->addHTML($style);
-
-		if (!isset($this->diagramContainer)) {
-			$pathway = $this->pathway;
-			$svgUnified = $pathway->getSvgUnified();
-			$diagramContainer = new DOMDocument("1.0","UTF-8");
-			$diagramContainerString = <<<TEXT
-<html><body>
-	<div class="diagram-container">
-		<div class="kaavioContainer"></div>
-			<!-- TODO DOMDocument::loadHTML() appears unable to display SVG inline
-			$svgUnified
-			-->
-		<div id="diagram-footer"></div>
-	</div>
-</body></html> 
-TEXT;
-
-			$diagramContainer->loadHTML($diagramContainerString);
-			$this->diagramContainer = $diagramContainer;
-			return $diagramContainer;
-		} else {
-			return $this->diagramContainer;
-		}
-	}
-
-	function appendToDiagramFooter($htmlString) {
-		$diagramContainer = $this->getDiagramContainer();
-		$diagramFooter = $diagramContainer->getElementById('diagram-footer');
-		$docFrag = $diagramContainer->createDocumentFragment();
-		$docFrag->appendXML($htmlString);
-		$diagramFooter->appendChild($docFrag);
-	}
-
 	static function getDownloadURL($pathway, $type) {
 		if($pathway->getActiveRevision()) {
 			$oldid = "&oldid={$pathway->getActiveRevision()}";
@@ -424,7 +391,7 @@ TEXT;
 		return WPI_SCRIPT_URL . "?action=downloadFile&type=$type&pwTitle={$pathway->getTitleObject()->getFullText()}{$oldid}";
 	}
 
-	function addDownloadCaption() {
+	function Download() {
 		$pathway = $this->pathway;
 		//Create dropdown action menu
 		global $wgOut;
@@ -463,11 +430,9 @@ window.addEventListener('DOMContentLoaded', function() {
 SCRIPT;
 		$wgOut->addScript($script);
 		$this->appendToDiagramFooter('<div id="download-button"></div>');
-
-		//$this->appendToDiagramFooter($dropdown);
 	}
 
-	function addEditCaption() {
+	function EditCaption() {
 		$pathway = $this->pathway;
 		global $wgOut, $wgUser;
 		//Create edit button
@@ -532,68 +497,15 @@ SCRIPT;
 		$this->appendToDiagramFooter($editButton);
 	}
 
-	function hideNavbars() {
-		global $wgOut;
-		//$wgOut->clearHTML();
-		$wgOut->setArticleBodyOnly(true);
-		//$wgOut->addHTML($this->diagram());
-
-		/*
-		$script = <<<SCRIPT
-<script type="text/javascript">
-	window.addEventListener('DOMContentLoaded', function() {
-		var body = document.querySelector('body');
-		body.removeAttribute('class');
-		var globalWrapper = document.querySelector('#globalWrapper');
-		// if we wanted to keep the title and organism:
-		//var content = document.querySelector('#content');
-		var content = document.querySelector('.diagram-container');
-		content.setAttribute('class', '');
-		content.style.top = 0;
-		content.style.left = 0;
-		content.style.border = 0;
-		content.style.margin = 0;
-		content.style.padding = 0;
-		globalWrapper.replaceWith(content);
-	});
-</script>
-SCRIPT;
-		$wgOut->addScript($script);
-		//*/
+	function History() {
+		return "{{Template:PathwayPage:History}}";
 	}
 
-	function hideHistory() {
-		global $wgOut;
-
-		$script = <<<SCRIPT
-<script type="text/javascript">
-	window.addEventListener('DOMContentLoaded', function() {
-		document.querySelectorAll('[name="External_references"], [name="External_references"] + h2, [name="Datanodes"], [name="Datanodes"] + h3, [name="Datanodes"] + h3 + table, [name="Datanodes"] + h3 + table + table, [name="Annotated_Interactions"] + h3, [name="Annotated_Interactions"] + h3 + p')
-			.forEach(function(el) {
-				el.style.visibility = 'hidden';
-			});
-	});
-</script>
-SCRIPT;
-		$wgOut->addScript($script);
+	function Xrefs() {
+		return "{{Template:PathwayPage:Xrefs}}";
 	}
 
-	function hideXrefs() {
-		global $wgOut;
-		$hideScript = <<<SCRIPT
-<script type="text/javascript">
-	window.addEventListener('DOMContentLoaded', function() {
-		document.querySelectorAll('[name="History"], [name="History"] + h2, [name="History"] + h2 + table, , [name="History"] + h2 + table + form')
-			.forEach(function(el) {
-				el.style.visibility = 'hidden';
-			});
-	});
-</script>
-SCRIPT;
-		$wgOut->addScript($$hideScript);
-	}
-
-	function showViewAtWikiPathways() {
+	function LinkToFullPathwayPage() {
 		global $wgOut, $wgScriptPath;
 		$pathway = $this->pathway;
 		$wgOut->addHTML('<div style="position:absolute;overflow:visible;bottom:0;left:15px;">' .
@@ -602,15 +514,5 @@ SCRIPT;
 			'<img style="border:none" src="' . $wgScriptPath . '/skins/common/images/wikipathways_name.png" /></a>' .
 			'</div>' .
 			'</div>');
-	}
-
-	static function formatPubMed($text) {
-		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
-		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {
-			foreach($ids[1] as $id) {
-				$text = str_replace($id, "[$link$id $id]", $text);
-			}
-		}
-		return $text;
 	}
 }

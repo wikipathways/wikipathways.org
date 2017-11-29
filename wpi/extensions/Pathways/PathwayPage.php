@@ -256,7 +256,7 @@ class PathwayPage {
 	function diagram() {
 		global $wgUser, $wgRequest, $wgOut;
 		$pathway = $this->pathway;
-		$jsonData = $pathway->getJSON();
+		$jsonData = $pathway->getJson();
 		if (!$jsonData) {
 			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
 			return "<p>Note: only able to display static pathway diagram. Interactive diagram temporarily disabled for this pathway.</p><br>$pngPath";
@@ -384,12 +384,18 @@ SCRIPT;
 </style>
 STYLE;
 		$wgOut->addHTML($style);
+
 		if (!isset($this->diagramContainer)) {
+			$pathway = $this->pathway;
+			$svgUnified = $pathway->getSvgUnified();
 			$diagramContainer = new DOMDocument("1.0","UTF-8");
 			$diagramContainerString = <<<TEXT
 <html><body>
 	<div class="diagram-container">
 		<div class="kaavioContainer"></div>
+			<!-- TODO DOMDocument::loadHTML() appears unable to display SVG inline
+			$svgUnified
+			-->
 		<div id="diagram-footer"></div>
 	</div>
 </body></html> 

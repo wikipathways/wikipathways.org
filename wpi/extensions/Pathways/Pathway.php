@@ -541,7 +541,7 @@ class Pathway {
 	 * Gets the JSON representation of the GPML code,
 	 * formatted to match the structure of SVG,
 	 * as a string.
-	 * TODO: we aren't caching the JSON
+	 * TODO: we aren't caching this
 	 */
 	public function getJson() {
 		$gpmlLocation = $this->getFileLocation('gpml', false);
@@ -549,6 +549,34 @@ class Pathway {
 		//$version = $this->revision;
 		$version = $this->getActiveRevision();
 		return shell_exec('/bin/cat "' . $gpmlLocation . '" | /nix/var/nix/profiles/default/bin/gpml2pvjson --id "http://identifiers.org/wikipathways/' . $identifier . '" --pathway-version "' . $version . '"');
+	}
+
+	/**
+	 * Get the unified JSON for given JSON
+	 * TODO: we aren't caching this
+	 */
+//	public function unifyThis(myData) {
+//		// TODO
+//	}
+
+	/**
+	 * Get the SVG for the given JSON
+	 * TODO: we aren't caching this
+	 */
+//	public function getSvg(input) {
+//		// TODO
+//	}
+
+	/**
+	 * Get the unified SVG for this pathway, as a string (the active revision will be
+	 * used, see Pathway::getActiveRevision)
+	 * TODO: we aren't caching this
+	 */
+	public function getSvgUnified() {
+		$gpmlLocation = $this->getFileLocation('gpml', false);
+		$identifier = $this->getIdentifier();
+		$version = $this->getActiveRevision();
+		return shell_exec('/bin/cat "' . $gpmlLocation . '" | /nix/var/nix/profiles/default/bin/gpml2pvjson --id "http://identifiers.org/wikipathways/' . $identifier . '" --pathway-version "' . $version . '" | /nix/var/nix/profiles/default/bin/pvjs json2svg --static false');
 	}
 
 	/**

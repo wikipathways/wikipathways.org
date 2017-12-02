@@ -72,13 +72,13 @@ class TissueAnalyzer extends SpecialPage {
 		//Hack to add a css that's not in the skins directory
 		global $wgStylePath;
 		$oldStylePath = $wgStylePath;
-		$wgStylePath = "/wpi/lib/tissueanalyzer/";
+		$wgStylePath = "/wpi/js/tissueanalyzer/";
 		$wgOut->addStyle("/fancybox/jquery.fancybox-1.3.4.css");
 		$wgStylePath = $oldStylePath;
 
-		$wgOut->addScriptFile('/wpi/lib/tissueanalyzer/fancybox/jquery.fancybox-1.3.4.js');		
+		$wgOut->addScriptFile('/wpi/js/tissueanalyzer/fancybox/jquery.fancybox-1.3.4.js');		
 		$wgOut->addScript('<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>');
-		$wgOut->addScriptFile("/wpi/lib/tissueanalyzer/ChartFancy.js");
+		$wgOut->addScriptFile("/wpi/js/tissueanalyzer/ChartFancy.js");
 
 		$wgOut->addScript('
 				<script language="JavaScript">

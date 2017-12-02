@@ -21,7 +21,6 @@ function wfPathwayViewer_Magic( &$magicWords, $langCode ) {
 
 class PathwayViewer {
 	static function getJsDependencies() {
-		/*
 		global $wgScriptPath;
 
 		if(preg_match('/(?i)msie [6-8]/',$_SERVER['HTTP_USER_AGENT'])) {
@@ -49,11 +48,9 @@ class PathwayViewer {
 		}
 
 		return $scripts;
-		//*/
 	}
 
 	static function enable(&$parser, $pwId, $imgId) {
-		/*
 		global $wgOut, $wgStylePath, $wpiJavascriptSources, $wgScriptPath,
 			$wpiJavascriptSnippets, $jsRequireJQuery, $wgRequest, $wgJsMimeType;
 
@@ -72,7 +69,6 @@ class PathwayViewer {
 		} catch(Exception $e) {
 			return "invalid pathway title: $e";
 		}
-		//*/
 	}
 
 }

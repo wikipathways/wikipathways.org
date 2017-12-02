@@ -544,39 +544,52 @@ class Pathway {
 	 * TODO: we aren't caching this
 	 */
 	public function getJson() {
-		$gpmlLocation = $this->getFileLocation('gpml', false);
-		$identifier = $this->getIdentifier();
-		//$version = $this->revision;
-		$version = $this->getActiveRevision();
-		return shell_exec('/bin/cat "' . $gpmlLocation . '" | /nix/var/nix/profiles/default/bin/gpml2pvjson --id "http://identifiers.org/wikipathways/' . $identifier . '" --pathway-version "' . $version . '"');
-	}
+		$gpml_file = $this->getFileLocation('gpml', false);
+		$pathway_identifier = $this->getIdentifier();
+		$pathway_version = $this->getActiveRevision();
+		$organism=$this->getSpecies();
 
-	/**
-	 * Get the unified JSON for given JSON
-	 * TODO: we aren't caching this
-	 */
-//	public function unifyThis(myData) {
-//		// TODO
-//	}
+		$jq="/nix/var/nix/profiles/default/bin/jq";
+		$gpml2pvjson="/nix/var/nix/profiles/default/bin/gpml2pvjson";
+		$bridgedb="/nix/var/nix/profiles/default/bin/bridgedb";
+
+		// TODO we are not explicitly deleting the tmp files. Will that be a problem?
+		// TODO disabled this b/c BridgeDb was down.
+//		$cmd = <<<TEXT
+//original_json_file=$(mktemp)
+//entity_map_file=$(mktemp)
+//
+//cat "$gpml_file" | \
+//       	$gpml2pvjson --id $pathway_identifier --pathway-version $pathway_version | \
+//	tee "\$original_json_file" | \
+//	$jq -rc '. | .entityMap[]' | \
+//	$bridgedb enrich "$organism" dbConventionalName dbId ncbigene ensembl wikidata | \
+//	$jq --slurp 'reduce .[] as \$entity ({}; .[\$entity.id] = \$entity)' > \$entity_map_file;
+//
+//cat "\$entity_map_file" | \
+//	$jq -rc --slurpfile original_json "\$original_json_file" --slurp '. as \$entity_map | ({pathway: \$original_json[0].pathway, entityMap: \$entity_map[0]})';
+//TEXT;
+		$cmd = <<<TEXT
+cat "$gpml_file" | \
+       	$gpml2pvjson --id $pathway_identifier --pathway-version $pathway_version;
+TEXT;
+
+
+		return shell_exec($cmd);
+	}
 
 	/**
 	 * Get the SVG for the given JSON
 	 * TODO: we aren't caching this
 	 */
-//	public function getSvg(input) {
-//		// TODO
-//	}
+	public function convertJsonToSvg($jsonData) {
+		 $pvjs="/nix/var/nix/profiles/default/bin/pvjs";
 
-	/**
-	 * Get the unified SVG for this pathway, as a string (the active revision will be
-	 * used, see Pathway::getActiveRevision)
-	 * TODO: we aren't caching this
-	 */
-	public function getSvgUnified() {
-		$gpmlLocation = $this->getFileLocation('gpml', false);
-		$identifier = $this->getIdentifier();
-		$version = $this->getActiveRevision();
-		return shell_exec('/bin/cat "' . $gpmlLocation . '" | /nix/var/nix/profiles/default/bin/gpml2pvjson --id "http://identifiers.org/wikipathways/' . $identifier . '" --pathway-version "' . $version . '" | /nix/var/nix/profiles/default/bin/pvjs json2svg --static false');
+		 $cmd = <<<TEXT
+echo "$jsonData" | $pvjs json2svg -s false;
+TEXT;
+
+		return shell_exec($cmd);
 	}
 
 	/**

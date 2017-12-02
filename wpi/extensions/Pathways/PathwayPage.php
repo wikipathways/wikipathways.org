@@ -6,9 +6,6 @@ error_reporting(E_ALL);
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
 # TODO can we get rid of this? We used to use it for the Java applet, but
 # we're not using that anymore.
-$wgHooks['BeforePageDisplay'][] = array('addPreloaderScript');
-
-
 function renderPathwayPage(&$parser, &$text, &$strip_state) {
 	global $wgUser, $wgRequest, $wgOut;
 
@@ -44,21 +41,6 @@ ERROR;
 	return true;
 }
 
-function addPreloaderScript(&$out) {
-	global $wgTitle, $wgUser, $wgScriptPath;
-	/*
-	if($wgTitle->getNamespace() == NS_PATHWAY && $wgUser->isLoggedIn() &&
-		strstr( $out->getHTML(), "pwImage" ) !== false ) {
-		$base = $wgScriptPath . "/wpi/applet/";
-		$class = "org.wikipathways.applet.Preloader.class";
-
-		$out->addHTML("<applet code='$class' codebase='$base'
-			width='1' height='1' name='preloader'></applet>");
-	}
-	//*/
-	return true;
-}
-
 class PathwayPage {
 	private $pathway;
 	private $data;
@@ -67,10 +49,9 @@ class PathwayPage {
 		"Navbars",
 		"PrivateWarning",
 		"Title",
-		"AuthorInfo",
-		"EditCaption",
-		"Download",
 		"Diagram",
+		"DiagramFooter",
+		"AuthorInfo",
 		"Description",
 		"QualityTags",
 		"OntologyTags",
@@ -84,10 +65,9 @@ class PathwayPage {
 			"Navbars",
 			"PrivateWarning",
 			"Title",
-			"AuthorInfo",
 			"Diagram",
-			"EditCaption",
-			"Download",
+			"DiagramFooter",
+			"AuthorInfo",
 			"Description",
 			"QualityTags",
 			"OntologyTags",
@@ -124,13 +104,6 @@ class PathwayPage {
 		//*/
 	}
 
-	function appendToDiagramFooter($htmlString) {
-		$diagramContainer = $this->diagramContainer;
-		$diagramFooter = $diagramContainer->getElementById('diagram-footer');
-		$docFrag = $diagramContainer->createDocumentFragment();
-		$docFrag->appendXML($htmlString);
-		$diagramFooter->appendChild($docFrag);
-	}
 
 	static function formatPubMed($text) {
 		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
@@ -149,33 +122,52 @@ class PathwayPage {
 		$enabledSectionNames = self::$sectionNamesByView[$this->view];
 
 		if (!in_array("Navbars", $enabledSectionNames)) {
-			//$wgOut->clearHTML();
 			$wgOut->setArticleBodyOnly(true);
-			//$wgOut->addHTML($this->diagram());
-
-			/*
-			$script = <<<SCRIPT
-	<script type="text/javascript">
-		window.addEventListener('DOMContentLoaded', function() {
-			var body = document.querySelector('body');
-			body.removeAttribute('class');
-			var globalWrapper = document.querySelector('#globalWrapper');
-			// if we wanted to keep the title and organism:
-			//var content = document.querySelector('#content');
-			var content = document.querySelector('.diagram-container');
-			content.setAttribute('class', '');
-			content.style.top = 0;
-			content.style.left = 0;
-			content.style.border = 0;
-			content.style.margin = 0;
-			content.style.padding = 0;
-			globalWrapper.replaceWith(content);
-		});
-	</script>
-	SCRIPT;
-			$wgOut->addScript($script);
-			//*/
 		}
+
+		$text = '';
+		$html = '';
+		$sectionNames = self::$sectionNames;
+		foreach($sectionNames as $sectionName) {
+			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
+				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
+					$html .= $this::$sectionName();
+				} else {
+					$text .= $this::$sectionName();
+				}
+			}
+		}
+
+		$height = $view == "normal" ? "600px" : "100%";
+
+		$diagramContainer = new DOMDocument("1.0","UTF-8");
+		$diagramContainerString = <<<HTML
+<!DOCTYPE html>
+<html>
+  <head>
+	<!-- This meta bit is only used because we are creating a static file, not usually needed. -->
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<style type="text/css">
+	.diagram-container {
+		width: 100%;
+		height: $height;
+		margin: 0px;
+		padding: 0px;
+	}
+	.kaavioContainer {
+		width: 100%;
+		height: inherit;
+		min-height: inherit;
+		margin: 0px;
+		padding: 0px;
+	}
+	</style>
+  </head>
+  <body>
+	$html
+  </body>
+</html>
+HTML;
 
 		if (!in_array("History", $enabledSectionNames)) {
 			$hideScript = <<<SCRIPT
@@ -191,62 +183,15 @@ SCRIPT;
 			$wgOut->addScript($$hideScript);
 		}
 
-		$height = $view == "normal" ? "600px" : "100%";
-
-		$style = <<<STYLE
-<style type="text/css">
-.diagram-container {
-	width: 100%;
-	height: $height;
-	margin: 0px;
-	padding: 0px;
-}
-.kaavioContainer {
-	width: 100%;
-	height: inherit;
-	min-height: inherit;
-	margin: 0px;
-	padding: 0px;
-}
-</style>
-STYLE;
-		$wgOut->addHTML($style);
-
-		$pathway = $this->pathway;
-		$svgUnified = $pathway->getSvgUnified();
-		$diagramContainer = new DOMDocument("1.0","UTF-8");
-		$diagramContainerString = <<<TEXT
-<html><body>
-<div class="diagram-container">
-	<div class="kaavioContainer"></div>
-		<!-- TODO DOMDocument::loadHTML() appears unable to display SVG inline
-		$svgUnified
-		-->
-	<div id="diagram-footer"></div>
-</div>
-</body></html> 
-TEXT;
 
 		$diagramContainer->loadHTML($diagramContainerString);
-		/*
-		libxml_use_internal_errors(true);
-		libxml_clear_errors();
-		//*/
 
-		$this->diagramContainer = $diagramContainer;
-
-		$text = '';
-		$sectionNames = self::$sectionNames;
-		foreach($sectionNames as $sectionName) {
-			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
-				$text .= $this::$sectionName();
-			}
-		}
+		$wgOut->addHTML($diagramContainerString);
 		return $text;
 	}
 
 	function AuthorInfo() {
-		return '{{Template:AuthorInfo}}';
+		return '<br>{{Template:AuthorInfo}}';
 	}
 
 	function Title() {
@@ -285,8 +230,16 @@ TEXT;
 			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
 			return "<p>Note: only able to display static pathway diagram. Interactive diagram temporarily disabled for this pathway.</p><br>$pngPath";
 		}
-		$wgOut->addHTML('<script type="text/javascript" src="/wpi/js/pvjs/pvjs.js"></script>');
-		$diagramInitScript = <<<SCRIPT
+
+		$svg = $pathway->convertJsonToSvg($jsonData);
+
+		return <<<HTML
+<div class="diagram-container">
+	<div class="kaavioContainer">
+		$svg
+	</div>
+</div>
+<script type="text/javascript" src="/wpi/js/pvjs/pvjs.js"></script>
 <script type="text/javascript">
 	if (window.hasOwnProperty("XrefPanel")) {
 	      XrefPanel.show = function(elm, id, datasource, species, symbol) {
@@ -311,16 +264,7 @@ TEXT;
 		pvjs.Pvjs(".kaavioContainer", pvjsInput);
 	});
 </script>
-SCRIPT;
-		$wgOut->addHTML($diagramInitScript);
-		$diagramContainer = $this->diagramContainer;
-		$finder = new DomXPath($diagramContainer);
-		return $finder->query("//div[@class='diagram-container']")->item(0)->C14N() . '<br>';
-
-		//return $finder->query("//div[@class='diagram-container']")->item(0)->C14N() . '<br>';
-		//echo $finder->query('//body')->item(0)->C14N();
-		//return $finder->query('/body')->saveHTML();
-		//return $diagramContainer->saveHTML();
+HTML;
 	}
 
 	function Description() {
@@ -331,7 +275,7 @@ SCRIPT;
 		if(!$description) {
 			$description = "<I>No description</I>";
 		}
-		$description = "\n== Description ==\n<div id='descr'>"
+		$description = "== Description ==\n<div id='descr'>"
 			 . $description . "</div>";
 
 		$description .= "<pageEditor id='descr' type='description'>$content</pageEditor>\n";
@@ -391,50 +335,10 @@ SCRIPT;
 		return WPI_SCRIPT_URL . "?action=downloadFile&type=$type&pwTitle={$pathway->getTitleObject()->getFullText()}{$oldid}";
 	}
 
-	function Download() {
-		$pathway = $this->pathway;
-		//Create dropdown action menu
-		global $wgOut;
-		$download = array(
-						'PathVisio (.gpml)' => self::getDownloadURL($pathway, 'gpml'),
-						'Scalable Vector Graphics (.svg)' => self::getDownloadURL($pathway, 'svg'),
-						'Gene list (.txt)' => self::getDownloadURL($pathway, 'txt'),
-						'Biopax level 3 (.owl)' => self::getDownloadURL($pathway, 'owl'),
-						'Eu.Gene (.pwf)' => self::getDownloadURL($pathway, 'pwf'),
-						'Png image (.png)' => self::getDownloadURL($pathway, 'png'),
-						'Acrobat (.pdf)' => self::getDownloadURL($pathway, 'pdf'),
-		);
-		$downloadlist = '';
-		foreach(array_keys($download) as $key) {
-			$downloadlist .= '<li><a href="' . $download[$key] . '">' . $key . '</a></li>';
-		}
-		$dropdown = <<<DROPDOWN
-<div style="float:right;">
-	<ul id="nav" name="nav">
-		<li>
-			<a href="#nogo2" class="button buttondown"><span>Download</span></a>
-			<ul>
-				$downloadlist
-			</ul>
-		</li>
-	</ul>
-</div>
-DROPDOWN;
-			$dropdown = str_replace("\n", "", $dropdown);
-			$script = <<<SCRIPT
-<script type="text/javascript">
-window.addEventListener('DOMContentLoaded', function() {
-	document.querySelector('#download-button').innerHTML = '{$dropdown}';
-});
-</script>
-SCRIPT;
-		$wgOut->addScript($script);
-		$this->appendToDiagramFooter('<div id="download-button"></div>');
-	}
-
-	function EditCaption() {
-		$pathway = $this->pathway;
+	function DiagramFooter() {
 		global $wgOut, $wgUser;
+		$pathway = $this->pathway;
+
 		//Create edit button
 		$pathwayURL = $pathway->getTitleObject()->getPrefixedURL();
 		//AP20070918
@@ -493,8 +397,51 @@ SCRIPT;
 			$wgOut->addScript($script);
 		}
 
-		$editButton = '<div id="edit-button" style="float:left;"></div>';
-		$this->appendToDiagramFooter($editButton);
+		//Create dropdown action menu
+		$download = array(
+						'PathVisio (.gpml)' => self::getDownloadURL($pathway, 'gpml'),
+						'Scalable Vector Graphics (.svg)' => self::getDownloadURL($pathway, 'svg'),
+						'Gene list (.txt)' => self::getDownloadURL($pathway, 'txt'),
+						'Biopax level 3 (.owl)' => self::getDownloadURL($pathway, 'owl'),
+						'Eu.Gene (.pwf)' => self::getDownloadURL($pathway, 'pwf'),
+						'Png image (.png)' => self::getDownloadURL($pathway, 'png'),
+						'Acrobat (.pdf)' => self::getDownloadURL($pathway, 'pdf'),
+		);
+		$downloadlist = '';
+		foreach(array_keys($download) as $key) {
+			$downloadlist .= '<li><a href="' . $download[$key] . '">' . $key . '</a></li>';
+		}
+		$dropdown = <<<DROPDOWN
+<div style="float:right;">
+	<ul id="nav" name="nav">
+		<li>
+			<a href="#nogo2" class="button buttondown"><span>Download</span></a>
+			<ul>
+				$downloadlist
+			</ul>
+		</li>
+	</ul>
+</div>
+DROPDOWN;
+			$dropdown = str_replace("\n", "", $dropdown);
+			$script = <<<SCRIPT
+<script type="text/javascript">
+window.addEventListener('DOMContentLoaded', function() {
+	document.querySelector('#download-button').innerHTML = '{$dropdown}';
+});
+</script>
+SCRIPT;
+		$wgOut->addScript($script);
+
+		$html = <<<HTML
+<div id="diagram-footer">
+	<div id="edit-button" style="float:left;"></div>
+	<div id="download-button"></div>
+</div>
+<br>
+HTML;
+
+		return $html;
 	}
 
 	function History() {

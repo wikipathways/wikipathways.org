@@ -192,6 +192,7 @@ SCRIPT;
 
 	function AuthorInfo() {
 		global $wgOut;
+		// TODO this is a kludge. There should be a better way to position this before the diagram.
 		$script = <<<SCRIPT
 <script type="text/javascript">
 window.addEventListener('DOMContentLoaded', function() {

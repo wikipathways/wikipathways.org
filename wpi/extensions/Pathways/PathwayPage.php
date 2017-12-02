@@ -191,7 +191,16 @@ SCRIPT;
 	}
 
 	function AuthorInfo() {
-		return '<br>{{Template:AuthorInfo}}';
+		global $wgOut;
+		$script = <<<SCRIPT
+<script type="text/javascript">
+window.addEventListener('DOMContentLoaded', function() {
+	jQuery( "#authorInfoContainer" ).insertBefore( $( ".diagram-container" ) );
+});
+</script>
+SCRIPT;
+		$wgOut->addScript($script);
+		return '{{Template:AuthorInfo}}';
 	}
 
 	function Title() {

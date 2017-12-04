@@ -4,32 +4,16 @@
 	 </head>
 	 <body>
 		 <?php
-		 $gpml2pvjson="/nix/var/nix/profiles/default/bin/gpml2pvjson";
-		 $bridgedb="/nix/var/nix/profiles/default/bin/bridgedb";
-		 $jq="/nix/var/nix/profiles/default/bin/jq";
-
-		 $gpml_file = '/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/WP2864_79278.gpml';
-		 $pathway_identifier = 'WP2864';
-		 $pathway_version = '79278';
-		 $organism="Human";
-
-		 $cmd = <<<TEXT
-original_json_file=$(mktemp)
-entity_map_file=$(mktemp)
-
-cat "$gpml_file" | \
-       	$gpml2pvjson --id $pathway_identifier --pathway-version $pathway_version | \
-	tee "\$original_json_file" | \
-	$jq -rc '. | .entityMap[]' | \
-	$bridgedb enrich "$organism" dbConventionalName dbId ncbigene ensembl wikidata | \
-	$jq --slurp 'reduce .[] as \$entity ({}; .[\$entity.id] = \$entity)' > \$entity_map_file;
-
-cat "\$entity_map_file" | \
-	$jq -rc --slurpfile original_json "\$original_json_file" --slurp '. as \$entity_map | ({pathway: \$original_json[0].pathway, entityMap: \$entity_map[0]})'
-TEXT;
-
-		$unifiedJson = shell_exec($cmd);
-		echo $unifiedJson;
+		ini_set('display_startup_errors',1);
+		ini_set('display_errors',1);
+		error_reporting(-1);
+		include "GPMLConverter.php";
+		$gpml_path = '/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/WP2864_79278.gpml';
+		$identifier = 'WP2864';
+		$version = '79278';
+		$organism="Human";
+		$pvjson=GPMLConverter::gpml2pvjson(array("gpml_path"=>$gpml_path, "identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+		echo GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
 		 ?>
 	 </body>
 </html>

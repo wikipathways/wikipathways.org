@@ -2,6 +2,7 @@
 require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
+require_once "/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/GPMLConverter.php";
 
 /**
 Class that represents a Pathway on WikiPathways
@@ -544,52 +545,30 @@ class Pathway {
 	 * TODO: we aren't caching this
 	 */
 	public function getJson() {
-		$gpml_file = $this->getFileLocation('gpml', false);
-		$pathway_identifier = $this->getIdentifier();
-		$pathway_version = $this->getActiveRevision();
+		if(isset($this->pvjson)) {
+			return $this->pvjson;
+		}
+
+		$gpml_path = $this->getFileLocation('gpml', false);
+		$identifier = $this->getIdentifier();
+		$version = $this->getActiveRevision();
 		$organism=$this->getSpecies();
 
-		$jq="/nix/var/nix/profiles/default/bin/jq";
-		$gpml2pvjson="/nix/var/nix/profiles/default/bin/gpml2pvjson";
-		$bridgedb="/nix/var/nix/profiles/default/bin/bridgedb";
-
-		// TODO we are not explicitly deleting the tmp files. Will that be a problem?
-		// TODO disabled this b/c BridgeDb was down.
-//		$cmd = <<<TEXT
-//original_json_file=$(mktemp)
-//entity_map_file=$(mktemp)
-//
-//cat "$gpml_file" | \
-//       	$gpml2pvjson --id $pathway_identifier --pathway-version $pathway_version | \
-//	tee "\$original_json_file" | \
-//	$jq -rc '. | .entityMap[]' | \
-//	$bridgedb enrich "$organism" dbConventionalName dbId ncbigene ensembl wikidata | \
-//	$jq --slurp 'reduce .[] as \$entity ({}; .[\$entity.id] = \$entity)' > \$entity_map_file;
-//
-//cat "\$entity_map_file" | \
-//	$jq -rc --slurpfile original_json "\$original_json_file" --slurp '. as \$entity_map | ({pathway: \$original_json[0].pathway, entityMap: \$entity_map[0]})';
-//TEXT;
-		$cmd = <<<TEXT
-cat "$gpml_file" | \
-       	$gpml2pvjson --id $pathway_identifier --pathway-version $pathway_version;
-TEXT;
-
-
-		return shell_exec($cmd);
+		$pvjson=GPMLConverter::gpml2pvjson(array("gpml_path"=>$gpml_path, "identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+		$this->pvjson = $pvjson;
+		return $pvjson;
+		return GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
 	}
 
 	/**
 	 * Get the SVG for the given JSON
 	 * TODO: we aren't caching this
 	 */
-	public function convertJsonToSvg($jsonData) {
-		 $pvjs="/nix/var/nix/profiles/default/bin/pvjs";
-
-		 $cmd = <<<TEXT
-echo "$jsonData" | $pvjs json2svg -s false;
-TEXT;
-
-		return shell_exec($cmd);
+	public function getSvg() {
+		$pvjson = $this->getJson;
+		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
+		$this->svg = $svg;
+		return $svg;
 	}
 
 	/**

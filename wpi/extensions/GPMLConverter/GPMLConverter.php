@@ -44,75 +44,40 @@ TEXT;
 		return shell_exec($cmd);
 	}
 
-	public static function pvjson2svg($inputs) {
-		$gpml2pvjson_path = self::$gpml2pvjson_path;
-		$bridgedb_path = self::$bridgedb_path;
+	public static function pvjson2svg($pvjson, $opts) {
 		$jq_path = self::$jq_path;
 		$pvjs_path = self::$pvjs_path;
 
-		$pvjson = escapeshellarg($inputs["pvjson"]);
-		#$pvjson = $inputs["pvjson"];
+		$static = $opts["static"] == false;
 
-/*
-echo $pvjson | $jq_path .;
-echo $pvjson;
-printf $pvjson;
-printf $pvjson | $jq_path .;
-$jq_path <<< $pvjson
-printf """$pvjson""" | $jq_path;
-{ echo $pvjson; cat - ; } | $jq_path;
-( printf """$pvjson"""; cat - ) | $jq_path;
-( printf ""$pvjson""; cat - ) | $jq_path;
-printf '{"a": 1}' | cat - | $jq_path;
-printf '{"a": 1}' | $jq_path;
-printf """$pvjson""" | $jq_path;
-printf $pvjson | tee "myfile.json" | $jq_path;
+		# TODO should we parse with jq first for safety? If so, how, b/c the following hangs:
+		#cat - | $jq_path . | $pvjs_path json2svg -s false;
+		$proc = proc_open("cat - | $pvjs_path json2svg -s $static;",
+			array(
+				array("pipe","r"),
+				array("pipe","w"),
+				array("pipe","w")
+			),
+			$pipes);
 
-#`echo $pvjson` > "\$myfile";
+		if (is_resource($proc)) {
+			// $pipes now looks like this:
+			// 0 => writeable handle connected to child stdin
+			// 1 => readable handle connected to child stdout
+			// Any error output will be appended to /tmp/error-output.txt
 
-myfile="/tmp/myfile.json";
+			fwrite($pipes[0], $pvjson);
+			fclose($pipes[0]);
 
-tmp=$(mktemp -d -t tmp.XXXXXXXXXX);
-myfile=\$tmp"/myfile.json";
-touch "\$myfile";
-$(echo 'wow') > "\$myfile";
-echo "\$myfile";
+			$result = stream_get_contents($pipes[1]);
+			fclose($pipes[1]);
 
-$(printf $pvjson) > \$myfile;
+			proc_close($proc);
 
-tmp=$(mktemp -d -t tmp.XXXXXXXXXX);
-myfile=\$tmp"/myfile.json";
-printf $pvjson > \$myfile;
-echo \$myfile;
-
-cat \$pvjson_path | $jq_path;
-
-
-
-tmp=$(mktemp -d -t tmp.XXXXXXXXXX);
-finish () { rm -rf "\$tmp" ; }
-trap finish EXIT
-
-pvjson_path=\$tmp"/pvjson.json";
-printf $pvjson | tee "myfile1.json" > \$pvjson_path;
-cat \$pvjson_path | $jq_path;
-//*/
-
-		$cmd = <<<TEXT
-tmp=$(mktemp -d -t tmp.XXXXXXXXXX);
-finish () { rm -rf "\$tmp" ; }
-trap finish EXIT
-
-pvjson_path=\$tmp"/pvjson.json";
-printf $pvjson > \$pvjson_path;
-cat \$pvjson_path | $jq_path .;
-TEXT;
-
-		#return escapeshellcmd($cmd);
-		#return shell_exec(escapeshellcmd($cmd));
-		#return shell_exec(escapeshellcmd($cmd));
-		return shell_exec($cmd);
-		#return $pvjson;
+			return $result;
+		} else {
+			return "Error: $proc in GPMLConverter->json2svg must be a resource.";
+		}
 	}
 
 }

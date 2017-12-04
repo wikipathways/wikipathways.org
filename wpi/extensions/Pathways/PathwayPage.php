@@ -2,6 +2,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+require_once "/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/GPMLConverter.php";
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
 # TODO can we get rid of this? We used to use it for the Java applet, but
@@ -241,7 +242,7 @@ SCRIPT;
 			return "<p>Note: only able to display static pathway diagram. Interactive diagram temporarily disabled for this pathway.</p><br>$pngPath";
 		}
 
-		$svg = $pathway->convertJsonToSvg($jsonData);
+		$svg = $pathway->getSvg();
 
 		return <<<HTML
 <div class="diagram-container">

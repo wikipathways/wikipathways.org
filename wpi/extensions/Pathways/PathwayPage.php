@@ -152,15 +152,11 @@ class PathwayPage {
 	.diagram-container {
 		width: 100%;
 		height: $height;
-		margin: 0px;
-		padding: 0px;
 	}
-	.kaavioContainer {
+	.Container {
 		width: 100%;
 		height: inherit;
 		min-height: inherit;
-		margin: 0px;
-		padding: 0px;
 	}
 	</style>
   </head>
@@ -239,14 +235,24 @@ SCRIPT;
 		$jsonData = $pathway->getJson();
 		if (!$jsonData) {
 			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
-			return "<p>Note: only able to display static pathway diagram. Interactive diagram temporarily disabled for this pathway.</p><br>$pngPath";
+
+			return <<<HTML
+<div class="diagram-container">
+	<div class="Container">
+		<img src="$pngPath" style="height: inherit;">
+	</div>
+</div>
+<div>
+	<p>Note: Could not render interactive diagram. Displaying static pathway diagram instead.</p>
+</div>
+HTML;
 		}
 
 		$svg = $pathway->getSvg();
 
 		return <<<HTML
 <div class="diagram-container">
-	<div class="kaavioContainer">
+	<div class="Container">
 		$svg
 	</div>
 </div>
@@ -272,7 +278,7 @@ SCRIPT;
 	var pvjsInput = $jsonData;
 	pvjsInput.onReady = function() {};
 	window.addEventListener('load', function() {
-		pvjs.Pvjs(".kaavioContainer", pvjsInput);
+		pvjs.Pvjs(".Container", pvjsInput);
 	});
 </script>
 HTML;

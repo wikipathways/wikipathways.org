@@ -557,7 +557,6 @@ class Pathway {
 		$pvjson=GPMLConverter::gpml2pvjson(array("gpml_path"=>$gpml_path, "identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
 		$this->pvjson = $pvjson;
 		return $pvjson;
-		return GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
 	}
 
 	/**

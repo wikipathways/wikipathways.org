@@ -1,16 +1,30 @@
 <?php
 
 class GPMLConverter{
-	public static $gpml2pvjson_path="/nix/var/nix/profiles/default/bin/gpml2pvjson";
-	public static $bridgedb_path="/nix/var/nix/profiles/default/bin/bridgedb";
-	public static $jq_path="/nix/var/nix/profiles/default/bin/jq";
-	public static $pvjs_path="/nix/var/nix/profiles/default/bin/pvjs";
+	/*
+	public static $gpml2pvjson_path="../../bin/gpml2pvjson";
+	public static $bridgedb_path="../../bin/bridgedb";
+	public static $jq_path="../../bin/jq";
+	public static $pvjs_path="../../bin/pvjs";
+	//*/
+	/*
+	public static $gpml2pvjson_path="/var/www/dev.wikipathways.org/wpi/bin/gpml2pvjson";
+	public static $bridgedb_path="/var/www/dev.wikipathways.org/wpi/bin/bridgedb";
+	public static $jq_path="/var/www/dev.wikipathways.org/wpi/bin/jq";
+	public static $pvjs_path="/var/www/dev.wikipathways.org/wpi/bin/pvjs";
+	//*/
+	public static $gpml2pvjson_path="/nix/store/fqh0g927iljzx6v9sxwx90h9kgj6m091-node-gpml2pvjson-3.0.0-4/bin/gpml2pvjson";
+	public static $bridgedb_path="/nix/store/ydpzk2vnzlfnysbfz3g7p5j4jiasniwr-node-bridgedb-6.0.0-17/bin/bridgedb";
+	public static $jq_path="/nix/store/9xfpk1vsx174xln0szn3jmq5ywh6r3bg-jq-1.5/bin/jq";
+	public static $pvjs_path="/nix/store/vk88r5giprikg37n166ws8-node-_at_wikipathways_slash_pvjs-4.0.0-5/bin/pvjs";
+
+	public static $enable_errors=false;
 
 	function __construct() {
-		// Do something
+		// do something
 	}
 
-	public static function gpml2pvjson1($gpml, $opts) {
+	public static function gpml2pvjson($gpml, $opts) {
 		$gpml2pvjson_path = self::$gpml2pvjson_path;
 		$bridgedb_path = self::$bridgedb_path;
 		$jq_path = self::$jq_path;
@@ -21,6 +35,7 @@ class GPMLConverter{
 		$organism = escapeshellarg($opts["organism"]);
 
 		#$proc = proc_open("cat - | $pvjs_path json2svg -s $static;",
+		#$proc = proc_open("cat -",
 		$proc = proc_open("cat - | $gpml2pvjson_path --id $identifier --pathway-version $version;",
 			array(
 				array("pipe","r"),
@@ -41,15 +56,17 @@ class GPMLConverter{
 			$result = stream_get_contents($pipes[1]);
 			fclose($pipes[1]);
 
-			/*
-			$err = stream_get_contents($pipes[2]);
-			fclose($pipes[2]);
+			//*
+			if (self::$enable_errors) {
+				$err = stream_get_contents($pipes[2]);
+				fclose($pipes[2]);
+			}
 			//*/
 
 			proc_close($proc);
 
-			/*
-			if ($err) {
+			//*
+			if (self::$enable_errors && $err) {
 				return $err;
 			}
 			//*/
@@ -61,7 +78,7 @@ class GPMLConverter{
 		}
 	}
 
-	public static function gpml2pvjson($inputs) {
+	public static function gpml2pvjson1($inputs) {
 		$gpml2pvjson_path = self::$gpml2pvjson_path;
 		$bridgedb_path = self::$bridgedb_path;
 		$jq_path = self::$jq_path;

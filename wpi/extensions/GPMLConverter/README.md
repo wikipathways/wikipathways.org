@@ -1,3 +1,122 @@
+# How to install on dev.wikipathways.org as multi-user
+
+## Get or create binary
+### Download binary
+```sh
+sudo su root
+curl https://nixos.org/nix/install > nix-download-binary
+```
+
+Open `nix-download-binary` and change the install script to use:
+```sh
+cp nix-install-deb-multi-user "$unpack/nix-1.11.15-x86_64-linux/install/install-deb-multi-user"
+script=$(echo "$unpack"/nix-1.11.15-x86_64-linux/install/install-deb-multi-user)
+#script=$(echo "$unpack"/*/install)
+```
+
+Make `nix-download-binary` executable and run it:
+```sh
+chmod nix-download-binary u +rwx
+sh nix-download-binary
+```
+
+### Install from source (if download above doesn't work)
+If you cannot download a binary, you'll need to install from source.
+
+Install [pre-reqs](https://nixos.org/nix/manual/#sec-prerequisites-source).
+
+```sh
+perl --version # must be >= 5.8
+which bzip2 # must be installed
+which gcc # must be installed
+which make # must be installed
+sudo apt-get update
+sudo apt-get install pkg-config sqlite3 libsqlite3-dev
+```
+
+rest of this not completed yet...
+
+```sh
+groupadd -r nixbld
+for n in $(seq 1 10); do useradd -c "Nix build user $n" \
+	    -d /var/empty -g nixbld -G nixbld -M -N -r -s "$(which nologin)" \
+	    nixbld$n; done
+bash <(curl https://nixos.org/nix/install)
+. /root/.nix-profile/etc/profile.d/nix.sh
+chown -R root:nixbld /nix/store
+sudo chmod 1775 /nix/store
+# create an init.d script for nix-daemon.
+# for Ubuntu, see the one I have at /etc/init.d/nix-daemon on dev.wikipathways.org server
+# create symlinks:
+cd /etc/rc2.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+cd ../rc3.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+cd ../rc4.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+cd ../rc5.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+sudo mkdir -p -m 1777 /nix/var/nix/profiles/per-user
+sudo mkdir -p -m 1777 /nix/var/nix/gcroots/per-user
+echo "build-users-group = nixbld" >> /etc/nix/nix.conf
+
+update-rc.d nix-daemon
+
+sudo -i
+# cd /etc/rc2.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# cd ../rc3.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# cd ../rc4.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# cd ../rc5.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# exit
+
+```
+
+# How to install on dev.wikipathways.org as root, single-user
+The section below isn't working yet. See also this: http://sandervanderburg.blogspot.com/2013/06/setting-up-multi-user-nix-installation.html
+
+```sh
+groupadd -r nixbld
+for n in $(seq 1 10); do useradd -c "Nix build user $n" \
+	    -d /var/empty -g nixbld -G nixbld -M -N -r -s "$(which nologin)" \
+	    nixbld$n; done
+bash <(curl https://nixos.org/nix/install)
+. /root/.nix-profile/etc/profile.d/nix.sh
+chown -R root:nixbld /nix/store
+sudo chmod 1775 /nix/store
+# create an init.d script for nix-daemon.
+# for Ubuntu, see the one I have at /etc/init.d/nix-daemon on dev.wikipathways.org server
+# create symlinks:
+cd /etc/rc2.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+cd ../rc3.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+cd ../rc4.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+cd ../rc5.d
+ln -s ../init.d/nix-daemon S60nix-daemon
+sudo mkdir -p -m 1777 /nix/var/nix/profiles/per-user
+sudo mkdir -p -m 1777 /nix/var/nix/gcroots/per-user
+echo "build-users-group = nixbld" >> /etc/nix/nix.conf
+
+update-rc.d nix-daemon
+
+sudo -i
+# cd /etc/rc2.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# cd ../rc3.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# cd ../rc4.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# cd ../rc5.d
+# ln -s ../init.d/nix-daemon S60nix-daemon
+# exit
+
+```
+
 # How to install on dev.wikipathways.org as single-user
 
 These instructions use my username, ariutta, but substitute your own username if you do this.
@@ -11,17 +130,14 @@ echo '. /home/ariutta/.nix-profile/etc/profile.d/nix.sh' » ~/.bashrc
 
 Make sure env variables are set
 ```sh
-echo '. /home/ariutta/.nix-profile/etc/profile.d/nix.sh' » ~/.bashrc
 . /home/ariutta/.nix-profile/etc/profile.d/nix.sh
 ```
 
 TODO: this is single-user. How does that relate to running it as www-data for Mediawiki?
 See https://nixos.org/nix/manual/#ssec-multi-user
 
-Update channel. TODO do we need both lines 1 and 2 below?
 ```sh
 nix-channel --update
-nix-channel --update nixpkgs
 nix-env -u '*'
 ```
 
@@ -36,9 +152,7 @@ Install converter dependencies (NPM).
 ```sh
 cd /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter
 node2nix --flatten -6 -i node-packages.json
-nix-env -f default.nix -iA '"gpml2pvjson-3.0.0-3"'
-nix-env -f default.nix -iA '"@wikipathways/pvjs-4.0.0-4"'
-nix-env -f default.nix -iA '"bridgedb-6.0.0-17"'
+nix-env -f default.nix -i
 ```
 
 Executables will be here:

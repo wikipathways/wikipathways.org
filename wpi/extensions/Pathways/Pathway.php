@@ -2,7 +2,10 @@
 require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
-require_once "/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/GPMLConverter.php";
+require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
+// TODO why don't the following work?
+//require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
+//require_once("../GPMLConverter/GPMLConverter.php");
 
 /**
 Class that represents a Pathway on WikiPathways
@@ -554,7 +557,7 @@ class Pathway {
 		$version = $this->getActiveRevision();
 		$organism=$this->getSpecies();
 
-		$pvjson=GPMLConverter::gpml2pvjson(array("gpml_path"=>$gpml_path, "identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+		$pvjson=GPMLConverter::gpml2pvjson(file_get_contents($gpml_path), array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
 		$this->pvjson = $pvjson;
 		return $pvjson;
 	}
@@ -564,7 +567,7 @@ class Pathway {
 	 * TODO: we aren't caching this
 	 */
 	public function getSvg() {
-		$pvjson = $this->getJson;
+		$pvjson = $this->getJson();
 		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
 		$this->svg = $svg;
 		return $svg;

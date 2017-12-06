@@ -2,11 +2,9 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-require_once "/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/GPMLConverter.php";
+require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
-# TODO can we get rid of this? We used to use it for the Java applet, but
-# we're not using that anymore.
 function renderPathwayPage(&$parser, &$text, &$strip_state) {
 	global $wgUser, $wgRequest, $wgOut;
 

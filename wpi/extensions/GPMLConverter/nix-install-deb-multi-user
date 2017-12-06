@@ -1,18 +1,26 @@
-#! /usr/bin/env bash
+#!/usr/bin/env sh
 
-# Run this as sudo -i nix-install-deb-multi-user
-# see https://nixos.wiki/wiki/Install_Nix_in_multi-user_mode_on_non-NixOS
+# This script draws extensively from this post:
+# https://nixos.wiki/wiki/Install_Nix_in_multi-user_mode_on_non-NixOS
 
 set -e
 
-echo "performing a multi-user installation of Nix..." >&2
-
-tmpDir="$(mktemp -d -t nix-binary-tarball-unpack.XXXXXXXXXX || \
-          oops "Can\'t create temporary directory for downloading the Nix tarball")"
+tmpDir=$(mktemp -d -t nix-binary-tarball-unpack.XXXXXXXXXX)
 cleanup() {
     rm -rf "$tmpDir"
 }
 trap cleanup EXIT INT QUIT TERM
+
+echo "Performing a multi-user installation of Nix..."
+
+if [ $HOME!="/root" ]; then
+	cat >&2 <<'END_HEREDOC'
+Error: nix-install-deb-multi-user must be run as root.
+Please cd to the dir containing this script and run it as:
+  sudo -i su -c $(pwd)/nix-install-deb-multi-user
+END_HEREDOC
+	exit;
+fi
 
 apt-get update
 apt-get install wget curl build-essential \
@@ -33,8 +41,7 @@ cd $tempDir"/nix-1.11.2/"
 make -j $(cat /proc/cpuinfo | awk '/^processor/{print $3}' | tail -1)
 make install
 
-touch "/etc/systemd/system/nix.service";
-$(cat >> "/etc/systemd/system/nix.service" <<'END_HEREDOC'
+$(cat > "/etc/systemd/system/nix.service" <<'END_HEREDOC'
 [Unit]
 Description=Nix daemon
 
@@ -54,31 +61,39 @@ touch /etc/default/nix
 systemctl enable nix
 systemctl start nix
 
-# TODO should this be put into .bash_profile, as above?
-touch "/root/.bashrc"
-$(cat >> "/root/.bashrc" <<'END_HEREDOC'
+SETUP_USER_SCRIPT_PATH="/usr/local/bin/nix-setup-user"
+$(cat > "$SETUP_USER_SCRIPT_PATH" <<'END_HEREDOC'
+chmod u+rwx "$SETUP_USER_SCRIPT_PATH"
+chmod g+rx-w "$SETUP_USER_SCRIPT_PATH"
+chmod o+rx-w "$SETUP_USER_SCRIPT_PATH"
 
-nix-setup-user() {
-        TARGET_USER="$1"
-        SYMLINK_PATH="/home/$TARGET_USER/.nix-profile"
-        PROFILE_DIR="/nix/var/nix/profiles/per-user/$TARGET_USER"
+TARGET_USER="$1"
+SYMLINK_PATH="/home/$TARGET_USER/.nix-profile"
+PROFILE_DIR="/nix/var/nix/profiles/per-user/$TARGET_USER"
 
-        echo "Creating profile $PROFILE_DIR..."
-        echo "Profile symlink: $SYMLINK_PATH"
+echo "Creating profile $PROFILE_DIR..."
+echo "Profile symlink: $SYMLINK_PATH"
 
-        rm "$SYMLINK_PATH"
-        mkdir -p "$PROFILE_DIR"
-        chown "$TARGET_USER" "$PROFILE_DIR"
-        
-        ln -s "$PROFILE_DIR/profile" "$SYMLINK_PATH"
-        chown -h "$TARGET_USER" "$SYMLINK_PATH"
-        
-        echo "export NIX_REMOTE=daemon" >> "/home/$TARGET_USER/.bashrc"
-        echo ". /usr/local/etc/profile.d/nix.sh" >> "/home/$TARGET_USER/.bashrc"
-        
-        su -lc "cd; . /usr/local/etc/profile.d/nix.sh; NIX_REMOTE=daemon nix-channel --update" "$TARGET_USER"
-}
+rm "$SYMLINK_PATH"
+mkdir -p "$PROFILE_DIR"
+chown "$TARGET_USER" "$PROFILE_DIR"
+
+ln -s "$PROFILE_DIR/profile" "$SYMLINK_PATH"
+chown -h "$TARGET_USER" "$SYMLINK_PATH"
+
+echo "export NIX_REMOTE=daemon" >> "/home/$TARGET_USER/.bashrc"
+echo ". /usr/local/etc/profile.d/nix.sh" >> "/home/$TARGET_USER/.bashrc"
+
+su -lc "cd; . /usr/local/etc/profile.d/nix.sh; NIX_REMOTE=daemon nix-channel --update" "$TARGET_USER"
 END_HEREDOC
 )
 
-echo "To setup nix for a user, e.g., jdoe, run 'sudo -i nix-setup-user jdoe'"
+cat <<'END_HEREDOC'
+Success!
+nix install complete.
+nix-daemon service is running.
+nix-daemon service set to init on system start.
+
+To setup nix for user jdoe, run:
+  sudo -i su -c nix-setup-user jdoe
+END_HEREDOC

@@ -3,6 +3,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
+require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
 function renderPathwayPage(&$parser, &$text, &$strip_state) {
@@ -115,13 +116,26 @@ class PathwayPage {
 	}
 
 	function render() {
-		global $wgOut;
+		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
 
 		$view = $this->view;
 		$enabledSectionNames = self::$sectionNamesByView[$this->view];
 
 		if (!in_array("Navbars", $enabledSectionNames)) {
 			$wgOut->setArticleBodyOnly(true);
+			// TODO the rest of this below can be done better
+			XrefPanel::addXrefPanelScripts();
+			$wgOut->addHTML('<script type="text/javascript">var wgServer="'.$wgServer.'"; var wgScriptPath="'.$wgScriptPath.'";</script>');
+			$wgOut->addHTML('<script type="text/javascript" src="'.$wgServer.'/skins/wikipathways/jquery-1.8.3.min.js"></script>');
+			$wgOut->addHTML('<link rel="stylesheet" href="/skins/wikipathways/main.css?164" type="text/css">');
+			$wgOut->addHTML('<link rel="stylesheet" href="/wpi/js/jquery-ui/jquery-ui-1.8.10.custom.css?164" type="text/css">');
+			foreach($wpiJavascriptSources as $wpiJavascriptSource) {
+				$wgOut->addHTML('<script type="text/javascript" src="'.$wpiJavascriptSource.'"></script>');
+			}
+			foreach($wpiJavascriptSnippets as $wpiJavascriptSnippet) {
+				$wgOut->addHTML('<script type="text/javascript">'.$wpiJavascriptSnippet.'</script>');
+			}
+			$wgOut->addHTML($diagramContainerString);
 		}
 
 		$text = '';

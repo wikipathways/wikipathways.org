@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#! /usr/bin/env bash
 
 # This script draws extensively from this post:
 # https://gist.github.com/joepie91/043a51a7b70be5f50f1d

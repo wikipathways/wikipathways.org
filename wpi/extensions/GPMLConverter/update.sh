@@ -1,7 +1,6 @@
 #!/bin/sh
-nix-channel --update
-nix-env -u '*'
 cd /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter
+rm *.nix
 node2nix --flatten -6 -i node-packages.json
 nix-env -f default.nix -i
 

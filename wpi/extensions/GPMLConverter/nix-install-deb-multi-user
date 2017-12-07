@@ -1,7 +1,16 @@
 #!/usr/bin/env sh
 
 # This script draws extensively from this post:
+# https://gist.github.com/joepie91/043a51a7b70be5f50f1d
+# which is copied here:
 # https://nixos.wiki/wiki/Install_Nix_in_multi-user_mode_on_non-NixOS
+#
+# It also draws from these resources:
+# https://nixos.org/nix/manual/#ch-installing-source
+# https://nixos.org/nix/manual/#ssec-multi-user
+# http://sandervanderburg.blogspot.com/2013/06/setting-up-multi-user-nix-installation.html
+# https://github.com/NixOS/nix/pull/135
+# https://gist.github.com/therealpxc/c23137278462f303d2a3
 
 set -e
 
@@ -10,6 +19,11 @@ cleanup() {
     rm -rf "$tmpDir"
 }
 trap cleanup EXIT INT QUIT TERM
+
+# see https://stackoverflow.com/a/24067243/5354298
+version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
+# see https://stackoverflow.com/questions/592620/check-if-a-program-exists-from-a-bash-script
+check_installed() { hash $1 2>/dev/null || { echo >&2 "I require $1 but it's not installed. Aborting. See https://nixos.org/nix/manual/#sec-prerequisites-source."; exit 1; } }
 
 echo "Performing a multi-user installation of Nix..."
 
@@ -22,8 +36,29 @@ END_HEREDOC
 	exit;
 fi
 
+# Checking Dependencies.
+check_installed make;
+check_installed bzip2;
+check_installed wget;
+check_installed which clang ? clang : gcc
+
+PERL_VERSION=$(perl --version | grep -oP "\d+\.\d+")
+if version_gt "5.8" $PERL_VERSION; then
+	cat >&2 <<'END_HEREDOC'
+Error: missing Perl >= 5.8.
+See https://nixos.org/nix/manual/#sec-prerequisites-source.
+END_HEREDOC
+	exit;
+fi
+
+# Not checking these dependencies, because they aren't normally required.
+# Deps that are only required if you modify the manual resources or you're building from the Git repo:
+# xmllint (from libxml2) and xsltproc (from libxslt)
+# Deps that are only required if you modify the parser or you're building from the Git repo:
+# bison and flex
+
 apt-get update
-apt-get install wget curl build-essential \
+apt-get install build-essential \
 	pkg-config autotools-dev dh-autoreconf libssl-dev libbz2-dev \
 	libsqlite3-dev libcurl4-openssl-dev liblzma-dev libgc-dev \
 	libdbi-perl libdbd-sqlite3-perl libwww-curl-perl libxml2 libxslt-dev \

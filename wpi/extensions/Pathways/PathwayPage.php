@@ -135,7 +135,6 @@ class PathwayPage {
 			foreach($wpiJavascriptSnippets as $wpiJavascriptSnippet) {
 				$wgOut->addHTML('<script type="text/javascript">'.$wpiJavascriptSnippet.'</script>');
 			}
-			$wgOut->addHTML($diagramContainerString);
 		}
 
 		$text = '';
@@ -143,7 +142,9 @@ class PathwayPage {
 		$sectionNames = self::$sectionNames;
 		foreach($sectionNames as $sectionName) {
 			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
+				#if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {}
 				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
+					#$html .= "\n" . $this::$sectionName();
 					$html .= $this::$sectionName();
 				} else {
 					$text .= $this::$sectionName();
@@ -153,7 +154,7 @@ class PathwayPage {
 
 		$height = $view == "normal" ? "600px" : "100%";
 
-		$diagramContainer = new DOMDocument("1.0","UTF-8");
+		#$diagramContainer = new DOMDocument("1.0","UTF-8");
 		$diagramContainerString = <<<HTML
 <!DOCTYPE html>
 <html>
@@ -162,14 +163,38 @@ class PathwayPage {
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 	<style type="text/css">
 	.diagram-container {
-		width: 100%;
-		height: $height;
+	  background: #fefefe;
+	  font-family: "Roboto";
+	  position: relative;
+	  width: 100%;
+	  height: $height;
+	  /* To avoid covering up the resize handle (grab area) */
+	  border-bottom-right-radius: 1em 1em;
+	  overflow: hidden;
 	}
+
 	.Container {
-		width: 100%;
-		height: inherit;
-		min-height: inherit;
+	  width: inherit;
+	  height: inherit;
+	  /* To avoid covering up the resize handle (grab area) */
+	  border-bottom-right-radius: inherit;
+	  overflow: inherit;
 	}
+
+	/* this is the svg */
+	.Diagram {
+	  width: inherit;
+	  height: inherit;
+	  overflow: inherit;
+	  color-interpolation: auto;
+	  image-rendering: auto;
+	  shape-rendering: auto;
+	  vector-effect: non-scaling-stroke;
+	}
+
+}
+}
+}
 	</style>
   </head>
   <body>
@@ -193,7 +218,7 @@ SCRIPT;
 		}
 
 
-		$diagramContainer->loadHTML($diagramContainerString);
+		#$diagramContainer->loadHTML($diagramContainerString);
 
 		$wgOut->addHTML($diagramContainerString);
 		return $text;

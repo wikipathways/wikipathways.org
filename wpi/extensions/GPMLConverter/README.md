@@ -59,5 +59,5 @@ curl "http://webservice.wikipathways.org/getPathwayAs?fileType=xml&pwId=WP554&re
 curl "https://cdn.rawgit.com/wikipathways/pvjs/e47ff1f6/test/input-data/troublesome-pathways/WP1818_73650.gpml" | gpml2pvjson --id "http://identifiers.org/wikipathways/WP1818" --pathway-version "73650" > "WP1818_73650.json"
 
 bridgedb xrefs "Human" "Ensembl" "ENSG00000111186"
-pvjs json2json "WP1818_73650.json"
+pvjs json2svg "WP1818_73650.json"
 ```

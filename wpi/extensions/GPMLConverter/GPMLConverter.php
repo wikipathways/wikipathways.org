@@ -7,16 +7,20 @@ class GPMLConverter{
 	public static $jq_path="../../bin/jq";
 	public static $pvjs_path="../../bin/pvjs";
 	//*/
+
 	/*
 	public static $gpml2pvjson_path="/var/www/dev.wikipathways.org/wpi/bin/gpml2pvjson";
 	public static $bridgedb_path="/var/www/dev.wikipathways.org/wpi/bin/bridgedb";
 	public static $jq_path="/var/www/dev.wikipathways.org/wpi/bin/jq";
 	public static $pvjs_path="/var/www/dev.wikipathways.org/wpi/bin/pvjs";
 	//*/
-	public static $gpml2pvjson_path="/nix/store/fqh0g927iljzx6v9sxwx90h9kgj6m091-node-gpml2pvjson-3.0.0-4/bin/gpml2pvjson";
-	public static $bridgedb_path="/nix/store/ydpzk2vnzlfnysbfz3g7p5j4jiasniwr-node-bridgedb-6.0.0-17/bin/bridgedb";
-	public static $jq_path="/nix/store/9xfpk1vsx174xln0szn3jmq5ywh6r3bg-jq-1.5/bin/jq";
-	public static $pvjs_path="/nix/store/vk88r5giprikg37n166ws8-node-_at_wikipathways_slash_pvjs-4.0.0-5/bin/pvjs";
+
+	//* TODO why can I not use relative paths here?
+	public static $gpml2pvjson_path="/var/www/dev.wikipathways.org/wpi/bin/gpml2pvjson";
+	public static $bridgedb_path="/var/www/dev.wikipathways.org/wpi/bin/bridgedb";
+	public static $jq_path="/var/www/dev.wikipathways.org/wpi/bin/jq";
+	public static $pvjs_path="/var/www/dev.wikipathways.org/wpi/bin/pvjs";
+	//*/
 
 	public static $enable_errors=false;
 
@@ -124,7 +128,7 @@ TEXT;
 		$jq_path = self::$jq_path;
 		$pvjs_path = self::$pvjs_path;
 
-		$static = $opts["static"] == false;
+		$static = isset($opts["static"]) ? $opts["static"] : false;
 
 		# TODO should we parse with jq first for safety? If so, how, b/c the following hangs:
 		#cat - | $jq_path . | $pvjs_path json2svg -s false;

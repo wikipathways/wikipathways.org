@@ -1,0 +1,62 @@
+#! /usr/bin/env bash
+
+# run this as: sudo -i $(pwd)/install
+# TODO why do we use "su -c" like this for installing nix but not GPMLConverter?: sudo -i su -c $(pwd)/nix-install-deb-multiuser
+
+set -e
+
+# see https://stackoverflow.com/a/246128/5354298
+script_dir() { echo "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"; }
+
+# see https://stackoverflow.com/a/24067243/5354298
+version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
+
+# see https://stackoverflow.com/questions/592620/check-if-a-program-exists-from-a-bash-script
+is_installed() { hash $1 2>/dev/null || { false; } }
+exit_if_not_installed() { is_installed $1 || { echo >&2 "I require $1 but it's not installed. Aborting. See https://nixos.org/nix/manual/#sec-prerequisites-source."; exit 1; } }
+function ensure_installed() {
+	if ! is_installed $1 ; then
+		echo "Installing missing dependency $1...";
+		$2;
+	fi
+}
+
+echo "Installing/Updating GPMLConverter"
+
+if [ "$HOME" != '/root' ]; then
+	cat >&2 <<'END_HEREDOC'
+Error: install be run as root.
+Please cd to the dir containing this script and run it as:
+  sudo -i $(pwd)/install
+END_HEREDOC
+	exit;
+fi
+
+cd $HOME;
+
+# Checking Dependencies.
+exit_if_not_installed nix-channel;
+exit_if_not_installed nix-env;
+
+nix-channel --update
+nix-env -u '*'
+
+ensure_installed jq "nix-env -i jq";
+ensure_installed node "nix-env -i nodejs";
+ensure_installed node2nix "nix-env -f <nixpkgs> -iA nodePackages.node2nix";
+
+cd $(script_dir);
+
+rm -f default.nix node-packages.nix node-env.nix;
+node2nix --flatten -6 -i node-packages.json
+nix-env -f default.nix -i
+
+APACHE_ENV_VARS_PATH="/etc/apache2/envvars";
+NIX_BIN_PATH_GLOBAL="/root/.nix-profile/bin";
+if ! cat $APACHE_ENV_VARS_PATH | grep $NIX_BIN_PATH_GLOBAL; then
+	echo '' >> $APACHE_ENV_VARS_PATH;
+	echo '# Added to allow WikiPathways to access CLI tools installed via nix.' >> $APACHE_ENV_VARS_PATH;
+	echo "PATH=\$PATH:$NIX_BIN_PATH_GLOBAL" >> $APACHE_ENV_VARS_PATH;
+fi
+
+echo "Success! GPMLConverter installed/updated."

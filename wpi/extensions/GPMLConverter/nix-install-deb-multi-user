@@ -27,7 +27,7 @@ check_installed() { hash $1 2>/dev/null || { echo >&2 "I require $1 but it's not
 
 echo "Performing a multi-user installation of Nix..."
 
-if [ $HOME!="/root" ]; then
+if [ "$HOME" != '/root' ]; then
 	cat >&2 <<'END_HEREDOC'
 Error: nix-install-deb-multi-user must be run as root.
 Please cd to the dir containing this script and run it as:
@@ -96,8 +96,16 @@ touch /etc/default/nix
 systemctl enable nix
 systemctl start nix
 
+touch "$HOME/.bashrc";
+$(cat >> "/etc/systemd/system/nix.service" <<'END_HEREDOC'
+export NIX_REMOTE=daemon
+. /usr/local/etc/profile.d/nix.sh
+END_HEREDOC
+)
+
 SETUP_USER_SCRIPT_PATH="/usr/local/bin/nix-setup-user"
 $(cat > "$SETUP_USER_SCRIPT_PATH" <<'END_HEREDOC'
+# NOTE: this is only for setting up non-root users.
 chmod u+rwx "$SETUP_USER_SCRIPT_PATH"
 chmod g+rx-w "$SETUP_USER_SCRIPT_PATH"
 chmod o+rx-w "$SETUP_USER_SCRIPT_PATH"

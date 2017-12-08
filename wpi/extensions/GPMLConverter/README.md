@@ -37,14 +37,14 @@ Executables will be located here:
 > /nix/var/nix/profiles/default/bin/bridgedb
 
 ## Permissions
-Make sure you're part of the "wikipathways" group.
+Make sure you're part of the "wp-devs" group.
 ```sh
-sudo adduser ariutta wikipathways
+sudo adduser ariutta wp-devs
 ```
 wikipathways group members should be able to read, write and execute files.
 www-data should only be able to read and execute files. It's not secure for it to be able to write the files.
 ```sh
-sudo chown -R www-data:wikipathways /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/
+sudo chown -R www-data:wp-devs /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/
 sudo chmod -R g+rwx /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/
 sudo chmod -R u+rx-w /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/
 ```

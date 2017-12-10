@@ -1,26 +1,11 @@
 <?php
 
 class GPMLConverter{
-	/*
-	public static $gpml2pvjson_path="../../bin/gpml2pvjson";
-	public static $bridgedb_path="../../bin/bridgedb";
-	public static $jq_path="../../bin/jq";
-	public static $pvjs_path="../../bin/pvjs";
-	//*/
-
-	/*
-	public static $gpml2pvjson_path="/var/www/dev.wikipathways.org/wpi/bin/gpml2pvjson";
-	public static $bridgedb_path="/var/www/dev.wikipathways.org/wpi/bin/bridgedb";
-	public static $jq_path="/var/www/dev.wikipathways.org/wpi/bin/jq";
-	public static $pvjs_path="/var/www/dev.wikipathways.org/wpi/bin/pvjs";
-	//*/
-
-	//* TODO why can I not use relative paths here?
-	public static $gpml2pvjson_path="/var/www/dev.wikipathways.org/wpi/bin/gpml2pvjson";
-	public static $bridgedb_path="/var/www/dev.wikipathways.org/wpi/bin/bridgedb";
-	public static $jq_path="/var/www/dev.wikipathways.org/wpi/bin/jq";
-	public static $pvjs_path="/var/www/dev.wikipathways.org/wpi/bin/pvjs";
-	//*/
+	// TODO is there a better way to define these?
+	public static $gpml2pvjson_path="/nix/var/nix/profiles/default/bin/gpml2pvjson";
+	public static $bridgedb_path="/nix/var/nix/profiles/default/bin/bridgedb";
+	public static $jq_path="/nix/var/nix/profiles/default/bin/jq";
+	public static $pvjs_path="/nix/var/nix/profiles/default/bin/pvjs";
 
 	public static $enable_errors=false;
 

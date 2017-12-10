@@ -37,6 +37,21 @@ master -------------------------------------------------------------->
 ```
 
 
+# Install
+
+```sh
+sudo addgroup wp-devs
+sudo adduser jdoe wp-devs
+sudo chown -R www-data:wp-devs /var/www/dev.wikipathways.org
+sudo chmod -R 570 /var/www/dev.wikipathways.org
+sudo find /var/www/dev.wikipathways.org -type d -exec echo chmod g+s {} \;
+## the following command is an alternative, which also sets the guid sticky bit to directories:
+#find /var/www/dev.wikipathways.org -type d -exec echo chmod 2570 {} \;
+## MW needs to write to the cache directory:
+sudo chmod -R 770 /var/www/dev.wikipathways.org/cache
+```
+
+For more details on permissions, see [this post](https://serverfault.com/a/357109).
 
 ---
 Old Repo: http://svn.bigcat.unimaas.nl/wikipathways/

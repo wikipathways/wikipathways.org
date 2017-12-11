@@ -104,7 +104,6 @@ class PathwayPage {
 		//*/
 	}
 
-
 	static function formatPubMed($text) {
 		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
 		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {
@@ -191,11 +190,19 @@ class PathwayPage {
 	  shape-rendering: auto;
 	  vector-effect: non-scaling-stroke;
 	}
-
-}
-}
-}
 	</style>
+
+	<script type="text/javascript">
+	var searchParams = new URLSearchParams(location.search);
+	var hiddenEntities = [''];
+        searchParams.set("hide", hiddenEntities.join());
+
+	history.replaceState(
+          { hiddenEntities: hiddenEntities },
+          document.title,
+          "?" + searchParams.toString()
+        );
+	</script>
   </head>
   <body>
 	$html
@@ -269,7 +276,7 @@ SCRIPT;
 	function Diagram() {
 		global $wgUser, $wgRequest, $wgOut;
 		$pathway = $this->pathway;
-		$jsonData = $pathway->getJson();
+		$jsonData = $pathway->getPvjson();
 		if (!$jsonData) {
 			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
 

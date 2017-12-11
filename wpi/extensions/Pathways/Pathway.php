@@ -547,7 +547,7 @@ class Pathway {
 	 * as a string.
 	 * TODO: we aren't caching this
 	 */
-	public function getJson() {
+	public function getPvjson() {
 		if(isset($this->pvjson)) {
 			return $this->pvjson;
 		}
@@ -567,7 +567,7 @@ class Pathway {
 	 * TODO: we aren't caching this
 	 */
 	public function getSvg() {
-		$pvjson = $this->getJson();
+		$pvjson = $this->getPvjson();
 		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
 		$this->svg = $svg;
 		return $svg;

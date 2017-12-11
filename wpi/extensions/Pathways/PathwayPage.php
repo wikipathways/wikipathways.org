@@ -191,18 +191,6 @@ class PathwayPage {
 	  vector-effect: non-scaling-stroke;
 	}
 	</style>
-
-	<script type="text/javascript">
-	var searchParams = new URLSearchParams(location.search);
-	var hiddenEntities = [''];
-        searchParams.set("hide", hiddenEntities.join());
-
-	history.replaceState(
-          { hiddenEntities: hiddenEntities },
-          document.title,
-          "?" + searchParams.toString()
-        );
-	</script>
   </head>
   <body>
 	$html

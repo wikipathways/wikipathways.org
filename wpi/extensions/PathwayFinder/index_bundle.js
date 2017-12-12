@@ -22100,7 +22100,7 @@
 	                            flexFlow: 'row',
 	                        } },
 	                        !selectedPathway ? null :
-	                            React.createElement("iframe", { src: "http://www.wikipathways.org/wpi/PathwayWidget.php?id=" + selectedPathway + "&label=" + labelAttribute + "&colors=green", width: "800px", height: "600px", style: { overflow: 'hidden' } }),
+	                            React.createElement("iframe", { src: "https://www.wikipathways.org/wpi/PathwayWidget.php?id=" + selectedPathway + "&label=" + labelAttribute + "&colors=green", width: "800px", height: "600px", style: { overflow: 'hidden' } }),
 	                        !!displayControlData ? React.createElement(DisplayControl, { data: displayControlData, onControlClick: this.handleControlClick, selected: selectedControl }) : null)));
 	    };
 	    return PathwayFinder;

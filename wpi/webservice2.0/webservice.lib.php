@@ -238,7 +238,7 @@ function getSwagger(){
 			"version" => "1.0"
 		),
 		"host" => "webservice.wikipathways.org",
-		"schemes" => array("http"),
+		"schemes" => array("https"),
 		"basePath" => "/",
  		"paths" => $this->getSwaggerCalls()
 		);

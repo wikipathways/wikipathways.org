@@ -5,135 +5,101 @@ Entry point for a pathway viewer widget that can be included in other pages.
 This page will display the interactive pathway viewer for a given pathway. It takes the following parameters:
 - identifier: the pathway identifier (e.g. WP4)
 - version: the version (revision) number of a specific version of the pathway (optional, leave out to display the newest version)
+- Xref http://www.wikipathways.org/wpi/PathwayWidget.php?id=<PathwayId>&xref=<XrefId>,<XrefDataSource>&colors=<color[,color...]>&rev=<VersionNumber>
+- Label http://www.wikipathways.org/wpi/PathwayWidget.php?id=<PathwayId>&label=<TextContent>&colors=<color[,color...]>&rev=<VersionNumber>
+
+To highlight multiple Xrefs and/or Labels, add "[]" to query param names, e.g.: foo[]=bar1&foo[]=bar2
+
+where:
+	color: a name, e.g., red, or a hexadecimal, e.g., %23FF0000
+		("%23" is the URL-encoded version of "#")
+	XrefId: the identifier specified for a DataNode Xref by the pathway author,
+		e.g., 1234
+	XrefDataSource: the BridgeDb conventional name specified for a DataNode Xref
+		by the pathway author, e.g., Entrez Gene
+	TextContent: the name or label of the entity
 
 You can include a pathway viewer in another website using an iframe:
 
-<iframe src ="http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4" width="500" height="500" style="overflow:hidden;"></iframe>
+<iframe src="http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4" width="500" height="500" style="overflow:hidden;"></iframe>
+*/
 
- */
-	require_once('wpi.php');
-	require_once('extensions/PathwayViewer/PathwayViewer.php');
-	header("X-XSS-Protection: 0");
+// TODO once we decide on the URL format, we can just redirect (as done in per PathwayWidget-redirect.php), instead of using the iframe below.
+
+require_once('wpi.php');
+parse_str($_SERVER['QUERY_STRING'], $params);
+
+$identifier = isset($params['identifier']) ? $params['identifier'] : $params['id'];
+$version = isset($params['version']) ? $params['version'] : isset($params['rev']) ? $params['rev'] : 0;
+
+# NOTE: we convert any query params that still use the old highlighter format
+#       to the new format in order to maintain backwards compatibility.
+$labelOrLabels = isset($params['label']) ? $params['label'] : null;
+$xrefOrXrefs = isset($params['xref']) ? $params['xref'] : null;
+$colorString = isset($params['colors']) ? $params['colors'] : null;
+
+unset($params['id']);
+unset($params['rev']);
+unset($params['colors']);
+unset($params['xref']);
+unset($params['label']);
+
+$params["view"] = "widget";
+
+if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorString)) {
+	$labels = array();
+	if (!is_null($labelOrLabels)) {
+		if (is_array($labelOrLabels)) {
+			foreach ($labelOrLabels as $label) {
+				array_push($labels, $label);
+			}
+		} else {
+			array_push($labels, $labelOrLabels);
+		}
+	}
+
+
+	$xrefs = array();
+	if (!is_null($xrefOrXrefs)){
+		if (is_array($xrefOrXrefs)){
+			foreach ($xrefOrXrefs as $xref) {
+				array_push($xrefs, $xref);
+			}
+		} else {
+			array_push($xrefs, $xrefOrXrefs);
+		}
+	}
+
+	$selectors = array();
+	foreach ($labels as $label) {
+		array_push($selectors, $label);
+	}
+	foreach ($xrefs as $xref) {
+		$xrefParts = explode(",", $xref);
+		$dbId = $xrefParts[0];
+		$dbName = $xrefParts[1];
+		array_push($selectors, $dbName . ":" . $dbId);
+	}
+
+	$colors = explode(",",$colorString);
+	if (count($selectors) != count($colors)) {
+		// if color list is not the same length as selector list, then just use first color
+		$firstColor = $colors[0];
+		$params[$firstColor] = join(",", $selectors);
+	} else {
+		for($i=0; $i <count($selectors); $i++){
+			$params[$colors[$i]] = $selectors[$i];
+		}
+	}
+
+}
+$paramString = (count($params) == 0 ? "" : ("?" . http_build_query($params))) ;
+
+$docString = <<<HTML
+<!-- This meta bit is only used because we are creating a static file, not usually needed. -->
+<meta charset="UTF-8">
+<iframe style="width: 100%; height: 100%; padding: 0; margin: 0; border: 0;" src="/index.php/Pathway:$identifier$paramString" />
+HTML;
+
+echo $docString; 
 ?>
-<!DOCTYPE HTML>
-<html>
-<head>
-<style  type="text/css">
-	a#wplink {
-	text-decoration:none;
-	font-family:serif;
-	color:black;
-	font-size:12px;
-	}
-	#logolink {
-		float:right;
-		top:-20px;
-		left: -10px;
-		position:relative;
-		z-index:2;
-		opacity: 0.5;
-	}
-	html, body {
-		width:100%;
-		height:100%;
-	}
-	#pvjs-widget {
-		top:0;
-		left:0;
-		font-size:12px;
-		width:100%;
-		height:inherit;
-	}
-</style>
-<?php
-//Initialize javascript
-echo '<script type="text/javascript" src="' . $jsJQuery . '"></script>' . "\n";
-
-$imgPath = "$wgServer/$wgScriptPath/skins/common/images/";
-
-$jsSrc = PathwayViewer::getJsDependencies();
-foreach($jsSrc as $js) {
-	echo '<script type="text/javascript" src="' . $js . '"></script>' . "\n";
-}
-$identifier = $_REQUEST['id'];
-$version = isset($_REQUEST['rev']) ? $_REQUEST['rev'] : 0;
-$label = isset($_REQUEST['label']) ? $_REQUEST['label'] : null;
-$xref = isset($_REQUEST['xref']) ? $_REQUEST['xref'] : null;
-$colors = isset($_REQUEST['colors']) ? $_REQUEST['colors'] : null;
-
-$highlights = " ";
-if ((!is_null($label) || !is_null($xref)) && !is_null($colors)){
-$highlights = "[";
-$selectors = array();
-if (!is_null($label)){
-  if (is_array($label)){
-	foreach ($label as $l) {
-	array_push($selectors, "{\"selector\":\"$l\",");
-	}
-  } else {
-	array_push($selectors, "{\"selector\":\"$label\",");
-  }
-}
-if (!is_null($xref)){
-  if (is_array($xref)){
-	foreach ($xref as $x) {
-	$xParts = explode(",", $x);
-		array_push($selectors, "{\"selector\":\"xref:id:".$xParts[0].",".$xParts[1]."\",");
-	}
-  } else {
-	$xrefParts = explode(",", $xref);
-	array_push($selectors, "{\"selector\":\"xref:id:".$xrefParts[0].",".$xrefParts[1]."\",");
-  }
-}
-
-$colorArray = explode(",",$colors);
-$firstColor = $colorArray[0];
-if (count($selectors) != count($colorArray)){ //if color list doesn't match selector list, then just use first color
-  for($i=0; $i <count($selectors); $i++){
-	$colorArray[$i] = $firstColor;
-  }
-}
-
-//if highlight params received
-for($i=0; $i <count($selectors); $i++){
-  $highlights .= $selectors[$i]."\"backgroundColor\":\"".$colorArray[$i]."\",\"borderColor\":\"".$colorArray[$i]."\"},";
-}
-$highlights .= "]";
-}
-
-if (!isset($highlights) || empty($highlights) || $highlights == " ") {
-	$highlights = "[]";
-}
-
-$pathway = Pathway::newFromTitle($identifier);
-if($version) {
-		$pathway->setActiveRevision($version);
-}
-
-$svg = $pathway->getFileURL(FILETYPE_IMG);
-$png = $pathway->getFileURL(FILETYPE_PNG);
-echo "<script>kaavioHighlights = " . $highlights . "</script>";
-$gpml = $pathway->getFileURL(FILETYPE_GPML);
-?>
-<title>WikiPathways Pathway Viewer</title>
-</head>
-<body>
-	<wikipathways-pvjs
-		id="pvjs-widget"
-		src="<?php echo $gpml ?>"
-		display-errors="true"
-		display-warnings="true"
-		fit-to-container="true"
-		editor="disabled">'
-			<img src="<?php echo $png ?>" alt="Diagram for pathway <?php echo $identifier ?>" width="600" height="420" class="thumbimage">
-	</wikipathways-pvjs>
-	<div style="position:absolute;height:0px;overflow:visible;bottom:0;left:15px;">
-		<div id="logolink">
-			<?php
-				echo "<a id='wplink' target='top' href='{$pathway->getFullUrl()}'>View at ";
-				echo "<img style='border:none' src='$wgScriptPath/skins/common/images/wikipathways_name.png' /></a>";
-			?>
-		</div>
-	</div>
-</body>
-</html>

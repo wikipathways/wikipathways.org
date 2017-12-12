@@ -10,3 +10,7 @@ sitemap.xml
 *~
 \#*#
 .#*
+cache/
+wpi/extensions/GPMLConverter/default.nix
+wpi/extensions/GPMLConverter/node-env.nix
+wpi/extensions/GPMLConverter/node-packages.nix

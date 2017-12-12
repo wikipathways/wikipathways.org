@@ -39,12 +39,34 @@ master -------------------------------------------------------------->
 **Shared dev checkouts**
 
 When cloning the repo into a shared directory among users in a common group, e.g., ```www-data```, be sure to chown all the files under .git to allow multiple users to push/pull:
-
-```
+```sh
 sudo chown -R www-data:www-data "$(git rev-parse --show-toplevel)/.git"
 ```
 
 If this is _not_ set correctly, you will get errors like, "insufficient permission for adding an object to repository database .git/objects" and "cannot open .git/FETCH_HEAD: Permission denied".
+
+
+# Install
+
+## Permissions
+WikiPathways developers should be able to read, write and execute. These users will be members of the group `wp-devs`.
+```sh
+sudo addgroup wp-devs
+sudo adduser jdoe wp-devs
+```
+
+The user `www-data` is the user account that runs apache. This user should only be able to read and execute. It's not secure for it to be able to write files/directories.
+```sh
+sudo chown -R www-data:wp-devs /var/www/dev.wikipathways.org
+sudo chmod -R 570 /var/www/dev.wikipathways.org
+sudo find /var/www/dev.wikipathways.org -type d -exec echo chmod g+s {} \;
+## the following command is an alternative, which also sets the guid sticky bit to directories:
+#find /var/www/dev.wikipathways.org -type d -exec echo chmod 2570 {} \;
+## MW needs to write to the cache directory:
+sudo chmod -R 770 /var/www/dev.wikipathways.org/cache
+```
+
+For more details on permissions, see [this post](https://serverfault.com/a/357109).
 
 ---
 Old Repo: http://svn.bigcat.unimaas.nl/wikipathways/

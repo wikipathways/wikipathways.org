@@ -35,11 +35,14 @@ fi
 cd $HOME;
 
 # Checking Dependencies.
+echo "Ensuring nix installed and up-to-date...";
 exit_if_not_installed nix-channel;
 exit_if_not_installed nix-env;
 
 nix-channel --update
-nix-env -u '*'
+#nix-env -u '*'
+
+echo "Ensuring dependencies are installed...";
 
 ensure_installed jq "nix-env -i jq";
 ensure_installed node "nix-env -i nodejs";

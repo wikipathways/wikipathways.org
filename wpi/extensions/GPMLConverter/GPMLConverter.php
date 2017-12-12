@@ -71,40 +71,56 @@ class GPMLConverter{
 		$jq_path = self::$jq_path;
 		$pvjs_path = self::$pvjs_path;
 
+		if (empty($gpml)) {
+			echo "Error: invalid gpml provided:<br>";
+			echo $gpml;
+			return;
+		}
+
 		$identifier = escapeshellarg($opts["identifier"]);
 		$version = escapeshellarg($opts["version"]);
 		$organism = escapeshellarg($opts["organism"]);
 
-		$writeToPvjsonPipe = createPipe("$gpml2pvjson_path --id $identifier --pathway-version $version");
+		$toPvjsonCmd = <<<TEXT
+$gpml2pvjson_path --id $identifier --pathway-version $version | \
+$jq_path -rc '. as {\$pathway} | (.entityMap | .[] |= (.type += if .dbId then [.dbConventionalName + ":" + .dbId] else [] end )) as \$entityMap | {\$pathway, \$entityMap}'
+TEXT;
+
+		$writeToPvjsonPipe = createPipe("$toPvjsonCmd", array("enable_errors"=>false));
 		$rawPvjsonString = $writeToPvjsonPipe($gpml, true);
 
 		$enrichCmd = <<<TEXT
 $jq_path -rc '. | .entityMap[]' | \
 $bridgedb_path enrich $organism dbConventionalName dbId ncbigene ensembl wikidata | \
-$jq_path --slurp 'reduce .[] as \$entity ({}; .[\$entity.id] = \$entity)';
+$jq_path -rc --slurp 'reduce .[] as \$entity ({}; .[\$entity.id] = \$entity)';
 TEXT;
 		$writeToEntityMapPipe = createPipe("$enrichCmd");
-		$entityMap = json_decode($writeToEntityMapPipe($rawPvjsonString, true));
+		$entityMapString = $writeToEntityMapPipe($rawPvjsonString, true);
 
-		if (!isset($entityMap) || $entityMap == null || !$entityMap) {
+		#if (count(get_object_vars($entityMap)) == 0 || trim($entityMapString) == '{}') {}
+		if (trim($entityMapString) == '{}') {
 			return $rawPvjsonString;
 		}
 
+		$entityMap = json_decode($entityMapString);
 		$pathway = json_decode($rawPvjsonString)->pathway;
-		$output = array("pathway"=>$pathway, "entityMap"=>$entityMap);
-		return json_encode($output);
+
+		return json_encode(array("pathway"=>$pathway, "entityMap"=>$entityMap));
 	}
 
 	public static function pvjson2svg($pvjson, $opts) {
 		$jq_path = self::$jq_path;
 		$pvjs_path = self::$pvjs_path;
 
+		if (empty($pvjson) || trim($pvjson) == '{}') {
+			echo "Error: invalid pvjson provided:<br>";
+			echo $pvjson;
+			return;
+		}
+
 		$static = isset($opts["static"]) ? $opts["static"] : false;
 
-		# TODO should we parse with jq first for safety? If so, how, b/c the following command hangs the server:
-		#$jq_path . | $pvjs_path json2svg -s false;
-
-		$writeToSvgPipe = createPipe("$pvjs_path json2svg -s $static");
+		$writeToSvgPipe = createPipe("$pvjs_path json2svg -s $static", array("enable_errors"=>false));
 		return $writeToSvgPipe($pvjson, true);
 	}
 

@@ -143,7 +143,6 @@ class PathwayPage {
 			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
 				#if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {}
 				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
-					#$html .= "\n" . $this::$sectionName();
 					$html .= $this::$sectionName();
 				} else {
 					$text .= $this::$sectionName();
@@ -153,49 +152,44 @@ class PathwayPage {
 
 		$height = $view == "normal" ? "600px" : "100%";
 
-		#$diagramContainer = new DOMDocument("1.0","UTF-8");
+		# NOTE: excluding optional tags, as recommended by Google Style Guide:
+		# https://google.github.io/styleguide/htmlcssguide.html#Optional_Tags
 		$diagramContainerString = <<<HTML
 <!DOCTYPE html>
-<html>
-  <head>
-	<!-- This meta bit is only used because we are creating a static file, not usually needed. -->
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-	<style type="text/css">
-	.diagram-container {
-	  background: #fefefe;
-	  font-family: "Roboto";
-	  position: relative;
-	  width: 100%;
-	  height: $height;
-	  /* To avoid covering up the resize handle (grab area) */
-	  border-bottom-right-radius: 1em 1em;
-	  overflow: hidden;
-	}
+<meta charset="UTF-8">
 
-	.Container {
-	  width: inherit;
-	  height: inherit;
-	  /* To avoid covering up the resize handle (grab area) */
-	  border-bottom-right-radius: inherit;
-	  overflow: inherit;
-	}
+<style type="text/css">
+.diagram-container {
+  background: #fefefe;
+  font-family: "Roboto";
+  position: relative;
+  width: 100%;
+  height: $height;
+  /* To avoid covering up the resize handle (grab area) */
+  border-bottom-right-radius: 1em 1em;
+  overflow: hidden;
+}
 
-	/* this is the svg */
-	.Diagram {
-	  width: inherit;
-	  height: inherit;
-	  overflow: inherit;
-	  color-interpolation: auto;
-	  image-rendering: auto;
-	  shape-rendering: auto;
-	  vector-effect: non-scaling-stroke;
-	}
-	</style>
-  </head>
-  <body>
-	$html
-  </body>
-</html>
+.Container {
+  width: inherit;
+  height: inherit;
+  /* To avoid covering up the resize handle (grab area) */
+  border-bottom-right-radius: inherit;
+  overflow: inherit;
+}
+
+/* this is the svg */
+.Diagram {
+  width: inherit;
+  height: inherit;
+  overflow: inherit;
+  color-interpolation: auto;
+  image-rendering: auto;
+  shape-rendering: auto;
+  vector-effect: non-scaling-stroke;
+}
+</style>
+$html
 HTML;
 
 		if (!in_array("History", $enabledSectionNames)) {

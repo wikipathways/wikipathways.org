@@ -47,8 +47,8 @@ unset($params['label']);
 $params["view"] = "widget";
 
 if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorString)) {
+	$labels = array();
 	if (!is_null($labelOrLabels)) {
-		$labels = array();
 		if (is_array($labelOrLabels)) {
 			foreach ($labelOrLabels as $label) {
 				array_push($labels, $label);
@@ -59,8 +59,8 @@ if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorStrin
 	}
 
 
+	$xrefs = array();
 	if (!is_null($xrefOrXrefs)){
-		$xrefs = array();
 		if (is_array($xrefOrXrefs)){
 			foreach ($xrefOrXrefs as $xref) {
 				array_push($xrefs, $xref);
@@ -94,5 +94,12 @@ if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorStrin
 
 }
 $paramString = (count($params) == 0 ? "" : ("?" . http_build_query($params))) ;
-echo "<html><iframe style=\"width: 100%; height: 100%; padding: 0; margin: 0; border: 0;\" src=\"/index.php/Pathway:$identifier$paramString\" /></html>";
+
+$docString = <<<HTML
+<!-- This meta bit is only used because we are creating a static file, not usually needed. -->
+<meta charset="UTF-8">
+<iframe style="width: 100%; height: 100%; padding: 0; margin: 0; border: 0;" src="/index.php/Pathway:$identifier$paramString" />
+HTML;
+
+echo $docString; 
 ?>

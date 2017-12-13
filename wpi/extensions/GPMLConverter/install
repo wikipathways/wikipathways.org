@@ -32,7 +32,7 @@ END_HEREDOC
 	exit;
 fi
 
-cd $HOME;
+cd; 
 
 # Checking Dependencies.
 echo "Ensuring nix installed and up-to-date...";
@@ -40,7 +40,7 @@ exit_if_not_installed nix-channel;
 exit_if_not_installed nix-env;
 
 nix-channel --update
-#nix-env -u '*'
+nix-env -u '*'
 
 echo "Ensuring dependencies are installed...";
 

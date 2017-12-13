@@ -70,8 +70,9 @@ for n in $(seq 1 10); do useradd -c "Nix build user $n" \
     nixbld$n; done
 
 wget "https://nixos.org/releases/nix/nix-1.11.2/nix-1.11.2.tar.xz" -P $tmpDir
+cd $tmpDir
 tar -xvf nix-1.11.2.tar.xz
-cd $tempDir"/nix-1.11.2/"
+cd "nix-1.11.2/"
 ./configure --enable-gc
 make -j $(cat /proc/cpuinfo | awk '/^processor/{print $3}' | tail -1)
 make install
@@ -106,9 +107,6 @@ END_HEREDOC
 SETUP_USER_SCRIPT_PATH="/usr/local/bin/nix-setup-user"
 $(cat > "$SETUP_USER_SCRIPT_PATH" <<'END_HEREDOC'
 # NOTE: this is only for setting up non-root users.
-chmod u+rwx "$SETUP_USER_SCRIPT_PATH"
-chmod g+rx-w "$SETUP_USER_SCRIPT_PATH"
-chmod o+rx-w "$SETUP_USER_SCRIPT_PATH"
 
 TARGET_USER="$1"
 SYMLINK_PATH="/home/$TARGET_USER/.nix-profile"
@@ -130,6 +128,10 @@ echo ". /usr/local/etc/profile.d/nix.sh" >> "/home/$TARGET_USER/.bashrc"
 su -lc "cd; . /usr/local/etc/profile.d/nix.sh; NIX_REMOTE=daemon nix-channel --update" "$TARGET_USER"
 END_HEREDOC
 )
+
+chmod u+rwx "$SETUP_USER_SCRIPT_PATH"
+chmod g+rx-w "$SETUP_USER_SCRIPT_PATH"
+chmod o+rx-w "$SETUP_USER_SCRIPT_PATH"
 
 cat <<'END_HEREDOC'
 Success!

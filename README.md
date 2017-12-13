@@ -48,8 +48,7 @@ If this is _not_ set correctly, you will get errors like, "insufficient permissi
 
 # Install
 
-Get the code:
-
+Navigate to where you want the code to live, e.g., `cd /var/www` and get the code:
 ```sh
 git clone git@github.com:wikipathways/wikipathways.org.git
 ```
@@ -58,17 +57,27 @@ or
 git clone https://github.com/wikipathways/wikipathways.org.git
 ```
 
+(Optional) Change the directory name to reflect the URL of the new WikiPathways instance, e.g.:
+```sh
+mv wikipathways.org dev.wikipathways.org
+```
+
+Enter the directory, e.g.:
+```sh
+cd dev.wikipathways.org
+```
+
 ## HTTP vs. HTTPS
 
 If you're deploying on an SSL-enabled site, run this:
 ```sh
 cp .htaccess.https .htaccess
-cp globals.php.https globals.php
+cp wpi/globals.php.https wpi/globals.php
 ```
 
 Otherwise, run this:
 ```sh
-cp globals.php.http globals.php
+cp wpi/globals.php.http wpi/globals.php
 ```
 
 ## Permissions

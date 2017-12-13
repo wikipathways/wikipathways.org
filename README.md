@@ -33,72 +33,11 @@ master -------------------------------------------------------------->
            dev ------------------------------------------------------>
                            \                      /
                             feature-new-search ---
-
 ```
 
-**Shared dev checkouts**
-
-When cloning the repo into a shared directory among users in a common group, e.g., ```www-data```, be sure to chown all the files under .git to allow multiple users to push/pull:
-```sh
-sudo chown -R www-data:www-data "$(git rev-parse --show-toplevel)/.git"
-```
-
-If this is _not_ set correctly, you will get errors like, "insufficient permission for adding an object to repository database .git/objects" and "cannot open .git/FETCH_HEAD: Permission denied".
-
-
-# Install
-
-Navigate to where you want the code to live, e.g., `cd /var/www` and get the code:
-```sh
-git clone git@github.com:wikipathways/wikipathways.org.git
-```
-or
-```sh
-git clone https://github.com/wikipathways/wikipathways.org.git
-```
-
-(Optional) Change the directory name to reflect the URL of the new WikiPathways instance, e.g.:
-```sh
-mv wikipathways.org dev.wikipathways.org
-```
-
-Enter the directory, e.g.:
-```sh
-cd dev.wikipathways.org
-```
-
-## HTTP vs. HTTPS
-
-If you're deploying on an SSL-enabled site, run this:
-```sh
-cp .htaccess.https .htaccess
-cp wpi/globals.php.https wpi/globals.php
-```
-
-Otherwise, run this:
-```sh
-cp wpi/globals.php.http wpi/globals.php
-```
-
-## Permissions
-WikiPathways developers should be able to read, write and execute. These users will be members of the group `wp-devs`.
-```sh
-sudo addgroup wp-devs
-sudo adduser jdoe wp-devs
-```
-
-The user `www-data` is the user account that runs apache. This user should only be able to read and execute. It's not secure for it to be able to write files/directories.
-```sh
-sudo chown -R www-data:wp-devs /var/www/dev.wikipathways.org
-sudo chmod -R 570 /var/www/dev.wikipathways.org
-sudo find /var/www/dev.wikipathways.org -type d -exec echo chmod g+s {} \;
-## the following command is an alternative, which also sets the guid sticky bit to directories:
-#find /var/www/dev.wikipathways.org -type d -exec echo chmod 2570 {} \;
-## MW needs to write to the cache directory:
-sudo chmod -R 770 /var/www/dev.wikipathways.org/cache
-```
-
-For more details on permissions, see [this post](https://serverfault.com/a/357109).
+Installation
+---
+We do not recommend attempting to install this site code as-is. There are many parts and services required that are not included here. Contact one of the [architects](https://www.wikipathways.org/index.php/WikiPathways:Team#Architects) for more details.
 
 ---
 Old Repo: http://svn.bigcat.unimaas.nl/wikipathways/

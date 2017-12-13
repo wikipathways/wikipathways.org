@@ -48,6 +48,29 @@ If this is _not_ set correctly, you will get errors like, "insufficient permissi
 
 # Install
 
+Get the code:
+
+```sh
+git clone git@github.com:wikipathways/wikipathways.org.git
+```
+or
+```sh
+git clone https://github.com/wikipathways/wikipathways.org.git
+```
+
+## HTTP vs. HTTPS
+
+If you're deploying on an SSL-enabled site, run this:
+```sh
+cp .htaccess.https .htaccess
+cp globals.php.https globals.php
+```
+
+Otherwise, run this:
+```sh
+cp globals.php.http globals.php
+```
+
 ## Permissions
 WikiPathways developers should be able to read, write and execute. These users will be members of the group `wp-devs`.
 ```sh

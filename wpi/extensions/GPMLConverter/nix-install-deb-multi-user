@@ -110,6 +110,7 @@ touch "$HOME/.profile";
 if ! cat "$HOME/.profile" | grep 'added by Nix installer'; then
 	$(cat >> "$HOME/.profile" <<'END_HEREDOC'
 # added by Nix installer
+export NIX_PATH=$HOME/.nix-defexpr/channels
 export NIX_REMOTE=daemon
 if [ -e /usr/local/etc/profile.d/nix.sh ]; then . /usr/local/etc/profile.d/nix.sh; fi
 if [ -e /root/.nix-profile/etc/profile.d/nix.sh ]; then . /root/.nix-profile/etc/profile.d/nix.sh; fi
@@ -117,7 +118,14 @@ END_HEREDOC
 )
 fi
 . "$HOME/.profile"
-nix-channel --update root
+
+# Add channels and update
+nix-channel --add https://nixos.org/channels/nixos-17.09
+nix-channel --add https://nixos.org/channels/nixpkgs-unstable
+nix-channel --update
+# TODO what is actually needed below?
+#nix-env -u root
+nix-env -u '*'
 
 # Restrict access to Nix operations to root and a group called nix-users:
 if ! getent group "nix-users"; then

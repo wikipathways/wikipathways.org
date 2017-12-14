@@ -34,7 +34,9 @@ Executables will be located here:
 ## Use: convert some data
 
 ```sh
-curl "http://webservice.wikipathways.org/getPathwayAs?fileType=xml&pwId=WP554&revision=77712&format=json" | jq -r .data | base64 --decode | gpml2pvjson --id "http://identifiers.org/wikipathways/WP554" --pathway-version "77712"
+curl "http://webservice.wikipathways.org/getPathwayAs?fileType=xml&pwId=WP554&revision=77712&format=json" | \
+jq -r .data | base64 --decode | \
+gpml2pvjson --id "http://identifiers.org/wikipathways/WP554" --pathway-version "77712"
 
 curl "http://webservice.wikipathways.org/getPathwayAs?fileType=xml&pwId=WP554&revision=77712&format=xml" | xpath "*/ns1:data/text()" | base64 --decode | gpml2pvjson --id "http://identifiers.org/wikipathways/WP554" --pathway-version "77712"
 

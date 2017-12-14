@@ -2,35 +2,47 @@
 // TODO do we need wpi.php for anything?
 #require_once('wpi.php');
 
-function writeToPipe($pipes, $enable_errors, $proc) {
-	return function($data, $end) use($pipes, $enable_errors, $proc) {
-		fwrite($pipes[0], $data);
+# TODO do we want to use trigger_error and try/catch/finally, or is it enough to just return false?
+
+function write_to_stream($pipes, $proc) {
+	return function($data, $end) use($pipes, $proc) {
+		$stdin = $pipes[0];
+		$stdout = $pipes[1];
+		$stderr = $pipes[2];
+
+		fwrite($stdin, $data);
+
 		if (!isset($end) || $end != true) {
-			return writeToPipe($pipes, $enable_errors, $proc);
+			return write_to_stream($pipes, $proc);
 		}
 
-		fclose($pipes[0]);
-		$result = stream_get_contents($pipes[1]);
-		fclose($pipes[1]);
+		fclose($stdin);
 
-		if ($enable_errors) {
-			$err = stream_get_contents($pipes[2]);
-			fclose($pipes[2]);
+		$result = stream_get_contents($stdout);
+		$info = stream_get_meta_data($stdout);
+		$err = stream_get_contents($stderr);
+
+		fclose($stderr);
+
+		if ($info['timed_out']) {
+			#trigger_error('pipe timed out', E_USER_NOTICE);
+			return false;
 		}
+
 
 		proc_close($proc);
 
-		if ($enable_errors && $err) {
-			return $err;
+		if ($err) {
+			#trigger_error($err, E_USER_NOTICE);
+			return false;
 		}
 
 		return $result;
 	};
 };
 
-
-function createPipe($cmd, $opts = array()) {
-	$enable_errors = isset($opts['enable_errors']) ? $opts['enable_errors'] : false;
+function create_stream($cmd, $opts = array()) {
+	$timeout = $opts["timeout"];
 
 	$proc = proc_open("cat - | $cmd",
 		array(
@@ -46,9 +58,14 @@ function createPipe($cmd, $opts = array()) {
 		// 1 => readable handle connected to child stdout
 		// Any error output will be appended to /tmp/error-output.txt
 
-		return writeToPipe($pipes, $enable_errors, $proc);
+		if (isset($timeout)) {
+			stream_set_timeout($pipes[0], $timeout);
+		}
+
+		return write_to_stream($pipes, $proc);
 	} else {
-		return "Error: $proc for $cmd must be a resource.";
+		#trigger_error("Error: $proc for $cmd must be a resource.", E_USER_NOTICE);
+		return false;
 	}
 }
 
@@ -58,8 +75,6 @@ class GPMLConverter{
 	public static $bridgedb_path="/nix/var/nix/profiles/default/bin/bridgedb";
 	public static $jq_path="/nix/var/nix/profiles/default/bin/jq";
 	public static $pvjs_path="/nix/var/nix/profiles/default/bin/pvjs";
-
-	public static $enable_errors=false;
 
 	function __construct() {
 		// do something
@@ -86,24 +101,63 @@ $gpml2pvjson_path --id $identifier --pathway-version $version | \
 $jq_path -rc '. as {\$pathway} | (.entityMap | .[] |= (.type += if .dbId then [.dbConventionalName + ":" + .dbId] else [] end )) as \$entityMap | {\$pathway, \$entityMap}'
 TEXT;
 
-		$writeToPvjsonPipe = createPipe("$toPvjsonCmd", array("enable_errors"=>false));
-		$rawPvjsonString = $writeToPvjsonPipe($gpml, true);
+		$streamGpml2Pvjson = create_stream("$toPvjsonCmd", array("timeout" => 2));
+		$rawPvjsonString = $streamGpml2Pvjson($gpml, true);
 
-		$enrichCmd = <<<TEXT
-$jq_path -rc '. | .entityMap[]' | \
-$bridgedb_path enrich $organism dbConventionalName dbId ncbigene ensembl wikidata | \
-$jq_path -rc --slurp 'reduce .[] as \$entity ({}; .[\$entity.id] = \$entity)';
+## TODO the enrich method from bridgedbjs is extremely slow when this was
+## installed via Nix, but it may have been faster when installed via NPM.
+## Regardless, it's currently much slower than xrefsBatch, suggesting the
+## batching is not happening below.
+#		$enrichCmd = <<<TEXT
+#$jq_path -rc '.entityMap[]' | \
+#$bridgedb_path enrich $organism dbConventionalName dbId ncbigene ensembl wikidata | \
+#$jq_path -rc --slurp 'reduce .[] as \$entity ({}; .[\$entity.id] = \$entity)';
+#TEXT;
+
+		$xrefsBatchCmd = <<<TEXT
+$jq_path -rc '.entityMap[] | select(has("dbId") and has("dbConventionalName") and .gpmlElementName == "DataNode" and .dbConventionalName != "undefined" and .dbId != "undefined") | .dbConventionalName + "," + .dbId' | \
+$bridgedb_path xrefsBatch --organism $organism | \
+$jq_path -rc --slurp 'reduce .[] as \$entity ({}; .[\$entity.dbConventionalName + ":" + \$entity.dbId] = \$entity)';
 TEXT;
-		$writeToEntityMapPipe = createPipe("$enrichCmd");
-		$entityMapString = $writeToEntityMapPipe($rawPvjsonString, true);
 
-		#if (count(get_object_vars($entityMap)) == 0 || trim($entityMapString) == '{}') {}
-		if (trim($entityMapString) == '{}') {
+		$writeToBridgeDbStream = create_stream("$xrefsBatchCmd", array("timeout" => 2));
+		$bridgedbResultString = $writeToBridgeDbStream($rawPvjsonString, true);
+		// TODO Are we actually saving any time by doing this instead of just parsing it as JSON?
+		if (!$bridgedbResultString || empty($bridgedbResultString) || $bridgedbResultString == '{}' || $bridgedbResultString == '[]') {
 			return $rawPvjsonString;
 		}
 
-		$entityMap = json_decode($entityMapString);
-		$pathway = json_decode($rawPvjsonString)->pathway;
+# TODO should we use this? NOTE: if yes, be sure to update the timeout!
+#		try{
+#			$writeToBridgeDbStream = create_stream("$xrefsBatchCmd", array("timeout" => 30));
+#			$bridgedbResultString = $writeToBridgeDbStream($rawPvjsonString, true);
+#		} catch(Exception $e) {
+#			return $rawPvjsonString;
+#		}
+
+		$bridgedbResult = json_decode($bridgedbResultString);
+		$pvjson = json_decode($rawPvjsonString);
+		$pathway = $pvjson->pathway;
+		$entityMap = $pvjson->entityMap;
+		foreach ($entityMap as $key => $value) {
+			if (property_exists($value, 'dbConventionalName') && property_exists($value, 'dbId')) {
+				$xrefId = $value->dbConventionalName.":".$value->dbId;
+				if (property_exists($bridgedbResult, $xrefId)) {
+					$mapper = $bridgedbResult->$xrefId;
+					if (property_exists($mapper, 'xrefs')) {
+						$xrefs = $mapper->xrefs;
+						foreach ($xrefs as $xref) {
+							if (property_exists($xref, 'isDataItemIn') && property_exists($xref, 'dbId')) {
+								$datasource = $xref->isDataItemIn;
+								if (property_exists($datasource, 'preferredPrefix')) {
+									array_push($value->type, "$datasource->preferredPrefix:$xref->dbId");
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 
 		return json_encode(array("pathway"=>$pathway, "entityMap"=>$entityMap));
 	}
@@ -120,8 +174,8 @@ TEXT;
 
 		$static = isset($opts["static"]) ? $opts["static"] : false;
 
-		$writeToSvgPipe = createPipe("$pvjs_path json2svg -s $static", array("enable_errors"=>false));
-		return $writeToSvgPipe($pvjson, true);
+		$streamPvjsonToSvg = create_stream("$pvjs_path json2svg -s $static", array("timeout" => 2));
+		return $streamPvjsonToSvg($pvjson, true);
 	}
 
 }

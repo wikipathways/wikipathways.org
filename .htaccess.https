@@ -1,5 +1,0 @@
-RewriteEngine on
-RewriteRule ^instance/([a-zA-Z0-9]+)_r([0-9]+)$ index.php?title=Pathway:$1&oldid=$2
-RewriteRule ^instance/([a-zA-Z0-9]+)$ index.php?title=Pathway:$1
-RewriteCond %{HTTP_HOST}  ^wikipathways\.org$ [NC]
-RewriteRule ^(.*) https://www.wikipathways.org/$1 [L,R]

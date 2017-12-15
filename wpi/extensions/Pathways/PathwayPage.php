@@ -340,7 +340,7 @@ HTML;
 		if(!$description) {
 			$description = "<I>No description</I>";
 		}
-		$description = "== Description ==\n<div id='descr'>"
+		$description = "\n== Description ==\n<div id='descr'>"
 			 . $description . "</div>";
 
 		$description .= "<pageEditor id='descr' type='description'>$content</pageEditor>\n";

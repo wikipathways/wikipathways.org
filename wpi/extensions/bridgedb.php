@@ -10,7 +10,7 @@ if(!isset($wpiBridgeUrl)) $wpiBridgeUrl = 'https://webservice.bridgedb.org/';
 header('Content-type: text/plain');
 
 if (preg_match('#bridgedb.php/?(.*)#', $_SERVER['REQUEST_URI'], $m)) {
-	$url = $wpiBridgeUrl .'/'. $m[1];
+	$url = $wpiBridgeUrl . $m[1];
 }
 ini_set("error_reporting", 0);
 

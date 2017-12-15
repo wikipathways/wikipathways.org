@@ -5,9 +5,18 @@ Entry point for a pathway viewer widget that can be included in other pages.
 This page will display the interactive pathway viewer for a given pathway. It takes the following parameters:
 - identifier: the pathway identifier (e.g. WP4)
 - version: the version (revision) number of a specific version of the pathway (optional, leave out to display the newest version)
-- Xref http://www.wikipathways.org/wpi/PathwayWidget.php?id=<PathwayId>&xref=<XrefId>,<XrefDataSource>&colors=<color[,color...]>&rev=<VersionNumber>
-- Label http://www.wikipathways.org/wpi/PathwayWidget.php?id=<PathwayId>&label=<TextContent>&colors=<color[,color...]>&rev=<VersionNumber>
 
+You can include a pathway viewer in another website using an iframe:
+
+<iframe src ="http://www.wikipathways.org/pathways/WP4?view=widget" width="500" height="500" style="overflow:hidden;"></iframe>
+*/
+
+/*
+The widget used this format for highlighting up until 2017:
+Xref
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=<PathwayId>&xref=<XrefId>,<XrefDataSource>&colors=<color[,color...]>&rev=<VersionNumber>
+Label
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=<PathwayId>&label=<TextContent>&colors=<color[,color...]>&rev=<VersionNumber>
 To highlight multiple Xrefs and/or Labels, add "[]" to query param names, e.g.: foo[]=bar1&foo[]=bar2
 
 where:
@@ -19,12 +28,50 @@ where:
 		by the pathway author, e.g., Entrez Gene
 	TextContent: the name or label of the entity
 
-You can include a pathway viewer in another website using an iframe:
+In 2017, we switched to this format:
+http://www.wikipathways.org/pathways/WP4?view=widget&<color>=<target>[,<target>...][&<color>=<target>[,<target>...]][&version=<VersionNumber>]
 
-<iframe src="http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4" width="500" height="500" style="overflow:hidden;"></iframe>
+where:
+	color: a name, e.g., red, or a hexadecimal, e.g., FF0000 (no "#")
+	target can be any of the following:
+		Entity ID, ie., GraphId in GPML
+		<XrefDataSource>:<XrefId> for a DataNode Xref
+			XrefDataSource:
+				BridgeDb conventional name specified by the pathway author,
+					e.g., Ensembl, Entrez Gene, HMDB, etc.
+				ensembl (GeneProducts only)
+				ncbigene (GeneProducts only)
+				wikidata
+			XrefId: the identifier for a DataNode Xref, e.g., 1234
+		Entity Type, e.g., DataNode, Metabolite, Interaction, Mitochondria, or
+			one of the other words from the GPML or WP vocabs.
+		TextContent: the name or label of the entity (URL-encoded)
+
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP87 =>
+http://www.wikipathways.org/pathways/WP4?view=widget
+
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP87&rev=7772 =>
+http://www.wikipathways.org/pathways/WP4?view=widget&version=7772
+
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&label=CRH&xref=8525,Entrez%20Gene&colors=green,blue =>
+http://www.wikipathways.org/pathways/WP4?green=CRH&blue=ncbigene:8525&view=widget
+
+
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&label=APC&xref=HMDB00193,HMDB&colors=green,blue =>
+http://www.wikipathways.org/pathways/WP4?green=APC&blue=HMDB:HMDB00193&view=widget
+
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&label[]=APC&label[]=TP53&label[]=ATP&colors=green,red,blue =>
+http://www.wikipathways.org/pathways/WP4?green=APC&red=TP53&blue=ATP&view=widget
+
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&xref[]=324,Entrez Gene&xref[]=HMDB00193,HMDB&colors=purple =>
+http://www.wikipathways.org/pathways/WP4?purple=Entrez Gene:324,HMDB:HMDB00193&view=widget
+
+http://www.wikipathways.org/wpi/PathwayWidget.php?id=WP4&xref[]=324,Entrez Gene&xref=HMDB00193,HMDB&colors=purple&rev=7772 =>
+http://www.wikipathways.org/pathways/WP4?purple=Entrez Gene:324,HMDB:HMDB00193&version=7772&view=widget
+
+http://dev.wikipathways.org/wpi/PathwayWidget.php?id=WP710&xref[]=324,Entrez%20Gene&xref[]=HMDB00193,HMDB&colors=purple&label=PC =>
+http://dev.wikipathways.org/wpi/PathwayWidget.php?id=WP710&purple=PC,Entrez Gene:324,HMDB:HMDB00193
 */
-
-// TODO once we decide on the URL format, we can just redirect (as done in per PathwayWidget-redirect.php), instead of using the iframe below.
 
 require_once('wpi.php');
 parse_str($_SERVER['QUERY_STRING'], $params);
@@ -47,8 +94,8 @@ unset($params['label']);
 $params["view"] = "widget";
 
 if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorString)) {
-	$labels = array();
 	if (!is_null($labelOrLabels)) {
+		$labels = array();
 		if (is_array($labelOrLabels)) {
 			foreach ($labelOrLabels as $label) {
 				array_push($labels, $label);
@@ -59,8 +106,8 @@ if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorStrin
 	}
 
 
-	$xrefs = array();
 	if (!is_null($xrefOrXrefs)){
+		$xrefs = array();
 		if (is_array($xrefOrXrefs)){
 			foreach ($xrefOrXrefs as $xref) {
 				array_push($xrefs, $xref);
@@ -94,12 +141,6 @@ if ((!is_null($labelOrLabels) || !is_null($xrefOrXrefs)) && !is_null($colorStrin
 
 }
 $paramString = (count($params) == 0 ? "" : ("?" . http_build_query($params))) ;
-
-$docString = <<<HTML
-<!-- This meta bit is only used because we are creating a static file, not usually needed. -->
-<meta charset="UTF-8">
-<iframe style="width: 100%; height: 100%; padding: 0; margin: 0; border: 0;" src="/index.php/Pathway:$identifier$paramString" />
-HTML;
-
-echo $docString; 
+header("Location: /index.php/Pathway:" . $identifier . $paramString);
+exit();
 ?>

@@ -117,6 +117,28 @@ class PathwayPage {
 	function render() {
 		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
 
+		$format = isset($_GET["format"]) ? $_GET["format"] : "html";
+		if ($format !== "html") {
+			$wgOut->setArticleBodyOnly(true);
+			header("Access-Control-Allow-Origin: *");
+
+#			$identifier = isset($_GET["identifier"]) ? $_GET["identifier"] : "WP4";
+#			$version = isset($_GET["version"]) ? $_GET["version"] : "0";
+#
+#			$gpml = base64_decode(json_decode(file_get_contents("https://webservice.wikipathways.org/getPathwayAs?fileType=gpml&pwId=$identifier&format=json"))->data);
+#			$gpml_parsed = new SimpleXMLElement($gpml);
+#			$organism = $gpml_parsed['Organism'];
+#
+#			echo GPMLConverter::gpml2pvjson($gpml, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+
+			$pathway = $this->pathway;
+			if ($format == "json") {
+				$jsonData = $pathway->getPvjson();
+			} else if ($format == "json") {
+				$svg = $pathway->getSvg();
+			}
+		}
+
 		$view = $this->view;
 		$enabledSectionNames = self::$sectionNamesByView[$this->view];
 

@@ -100,9 +100,14 @@ class GPMLConverter{
 $gpml2pvjson_path --id $identifier --pathway-version $version | \
 $jq_path -rc '. as {\$pathway} | (.entityMap | .[] |= (.type += if .dbId then [.dbConventionalName + ":" + .dbId] else [] end )) as \$entityMap | {\$pathway, \$entityMap}'
 TEXT;
-
-		$streamGpml2Pvjson = create_stream("$toPvjsonCmd", array("timeout" => 2));
+		//TODO: this timeout should be removed when we get async cacheing working
+		$streamGpml2Pvjson = create_stream("$toPvjsonCmd", array("timeout" => 4));
 		$rawPvjsonString = $streamGpml2Pvjson($gpml, true);
+
+		//Skip bridgedb unification unless view=widget (i.e., where the unification is useful)
+		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
+		if($view != 'widget')
+			return $rawPvjsonString;
 
 ## TODO the enrich method from bridgedbjs is extremely slow when this was
 ## installed via Nix, but it may have been faster when installed via NPM.
@@ -119,8 +124,8 @@ $jq_path -rc '.entityMap[] | select(has("dbId") and has("dbConventionalName") an
 $bridgedb_path xrefsBatch --organism $organism | \
 $jq_path -rc --slurp 'reduce .[] as \$entity ({}; .[\$entity.dbConventionalName + ":" + \$entity.dbId] = \$entity)';
 TEXT;
-
-		$writeToBridgeDbStream = create_stream("$xrefsBatchCmd", array("timeout" => 2));
+		//TODO: this timeout should be removed when we get async cacheing working
+		$writeToBridgeDbStream = create_stream("$xrefsBatchCmd", array("timeout" => 4));
 		$bridgedbResultString = $writeToBridgeDbStream($rawPvjsonString, true);
 		// TODO Are we actually saving any time by doing this instead of just parsing it as JSON?
 		if (!$bridgedbResultString || empty($bridgedbResultString) || $bridgedbResultString == '{}' || $bridgedbResultString == '[]') {

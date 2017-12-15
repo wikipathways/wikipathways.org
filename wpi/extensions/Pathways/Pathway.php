@@ -2,6 +2,10 @@
 require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
+require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
+// TODO why don't the following work?
+//require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
+//require_once("../GPMLConverter/GPMLConverter.php");
 
 /**
 Class that represents a Pathway on WikiPathways
@@ -533,6 +537,40 @@ class Pathway {
 		$gpmlRef = Revision::newFromTitle($gpmlTitle, $this->revision);
 
 		return $gpmlRef == NULL ? "" : $gpmlRef->getText();
+	}
+
+	/**
+	 * Get the JSON for this pathway, as a string (the active revision will be
+	 * used, see Pathway::getActiveRevision)
+	 * Gets the JSON representation of the GPML code,
+	 * formatted to match the structure of SVG,
+	 * as a string.
+	 * TODO: we aren't caching this
+	 */
+	public function getPvjson() {
+		if(isset($this->pvjson)) {
+			return $this->pvjson;
+		}
+
+		$gpml_path = $this->getFileLocation('gpml', false);
+		$identifier = $this->getIdentifier();
+		$version = $this->getActiveRevision();
+		$organism=$this->getSpecies();
+
+		$pvjson=GPMLConverter::gpml2pvjson(file_get_contents($gpml_path), array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+		$this->pvjson = $pvjson;
+		return $pvjson;
+	}
+
+	/**
+	 * Get the SVG for the given JSON
+	 * TODO: we aren't caching this
+	 */
+	public function getSvg() {
+		$pvjson = $this->getPvjson();
+		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
+		$this->svg = $svg;
+		return $svg;
 	}
 
 	/**

@@ -1,0 +1,176 @@
+#! /usr/bin/env bash
+
+# This script draws extensively from this post:
+# https://gist.github.com/joepie91/043a51a7b70be5f50f1d
+# which is copied here:
+# https://nixos.wiki/wiki/Install_Nix_in_multi-user_mode_on_non-NixOS
+#
+# It also draws from these resources:
+# https://nixos.org/nix/manual/#ch-installing-source
+# https://nixos.org/nix/manual/#ssec-multi-user
+# http://sandervanderburg.blogspot.com/2013/06/setting-up-multi-user-nix-installation.html
+# https://github.com/NixOS/nix/pull/135
+# https://gist.github.com/therealpxc/c23137278462f303d2a3
+
+set -e
+
+tmpDir=$(mktemp -d -t nix-binary-tarball-unpack.XXXXXXXXXX)
+cleanup() {
+    rm -rf "$tmpDir"
+}
+trap cleanup EXIT INT QUIT TERM
+
+# see https://stackoverflow.com/a/24067243/5354298
+version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
+# see https://stackoverflow.com/questions/592620/check-if-a-program-exists-from-a-bash-script
+check_installed() { hash $1 2>/dev/null || { echo >&2 "I require $1 but it's not installed. Aborting. See https://nixos.org/nix/manual/#sec-prerequisites-source."; exit 1; } }
+
+echo "Performing a multi-user installation of Nix..."
+
+if [ "$HOME" != '/root' ]; then
+	cat >&2 <<'END_HEREDOC'
+Error: nix-install-deb-multi-user must be run as root.
+Please cd to the dir containing this script and run it as:
+  sudo -i su -c $(pwd)/nix-install-deb-multi-user
+END_HEREDOC
+	exit;
+fi
+
+# Checking Dependencies.
+check_installed make;
+check_installed bzip2;
+check_installed wget;
+check_installed which clang ? clang : gcc
+
+PERL_VERSION=$(perl --version | grep -oP "\d+\.\d+")
+if version_gt "5.8" $PERL_VERSION; then
+	cat >&2 <<'END_HEREDOC'
+Error: missing Perl >= 5.8.
+See https://nixos.org/nix/manual/#sec-prerequisites-source.
+END_HEREDOC
+	exit;
+fi
+
+# Not checking these dependencies, because they aren't normally required.
+# Deps that are only required if you modify the manual resources or you're building from the Git repo:
+# xmllint (from libxml2) and xsltproc (from libxslt)
+# Deps that are only required if you modify the parser or you're building from the Git repo:
+# bison and flex
+
+apt-get -y update
+apt-get -y install build-essential \
+	pkg-config autotools-dev dh-autoreconf libssl-dev libbz2-dev \
+	libsqlite3-dev libcurl4-openssl-dev liblzma-dev libgc-dev \
+	libdbi-perl libdbd-sqlite3-perl libwww-curl-perl libxml2 libxslt-dev \
+	systemd;
+
+# Create daemon
+if ! getent group nixbld; then
+	groupadd -r nixbld
+	for n in $(seq 1 10); do useradd -c "Nix build user $n" \
+	    -d /var/empty -g nixbld -G nixbld -M -N -r -s "$(which nologin)" \
+	    nixbld$n; done
+fi
+
+wget "https://nixos.org/releases/nix/nix-1.11.2/nix-1.11.2.tar.xz" -P $tmpDir
+cd $tmpDir
+tar -xvf nix-1.11.2.tar.xz
+cd "nix-1.11.2/"
+./configure --enable-gc
+make -j $(cat /proc/cpuinfo | awk '/^processor/{print $3}' | tail -1)
+make install
+
+$(cat > "/etc/systemd/system/nix.service" <<'END_HEREDOC'
+[Unit]
+Description=Nix daemon
+
+[Service]
+EnvironmentFile=-/etc/default/nix
+ExecStart=/usr/local/bin/nix-daemon $EXTRA_OPTS
+IgnoreSIGPIPE=false
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+END_HEREDOC
+)
+
+touch /etc/default/nix
+# TODO getting a warning or error about /etc/init.d/nix being missing.
+# Should I need to create this?
+# If so, should it be something like this: https://gist.github.com/therealpxc/c23137278462f303d2a3#file-nix-daemon-init-sh
+# Or maybe it's one of the files from install.log, like misc/upstart/nix-daemon.conf ?
+touch /etc/init.d/nix
+
+systemctl enable nix
+systemctl start nix
+
+# Set environment variables for root user
+touch "$HOME/.profile";
+if ! cat "$HOME/.profile" | grep 'added by Nix installer'; then
+	$(cat >> "$HOME/.profile" <<'END_HEREDOC'
+# added by Nix installer
+export NIX_PATH=$HOME/.nix-defexpr/channels
+export NIX_REMOTE=daemon
+if [ -e /usr/local/etc/profile.d/nix.sh ]; then . /usr/local/etc/profile.d/nix.sh; fi
+if [ -e /root/.nix-profile/etc/profile.d/nix.sh ]; then . /root/.nix-profile/etc/profile.d/nix.sh; fi
+END_HEREDOC
+)
+fi
+. "$HOME/.profile"
+
+# Add channels and update
+nix-channel --add https://nixos.org/channels/nixos-17.09
+nix-channel --add https://nixos.org/channels/nixpkgs-unstable
+nix-channel --update
+
+# Restrict access to Nix operations to root and a group called nix-users:
+if ! getent group "nix-users"; then
+	groupadd -r nix-users
+	chgrp nix-users /nix/var/nix/daemon-socket
+	chmod ug=rwx,o= /nix/var/nix/daemon-socket
+fi
+
+# Add a script called nix-setup-user to PATH.
+SETUP_USER_SCRIPT_PATH="/usr/local/bin/nix-setup-user"
+$(cat > "$SETUP_USER_SCRIPT_PATH" <<'END_HEREDOC'
+# NOTE: this is only for setting up non-root users.
+TARGET_USER="$1"
+
+adduser "$TARGET_USER" nix-users
+
+SYMLINK_PATH="/home/$TARGET_USER/.nix-profile"
+PROFILE_DIR="/nix/var/nix/profiles/per-user/$TARGET_USER"
+
+echo "Creating profile $PROFILE_DIR..."
+echo "Profile symlink: $SYMLINK_PATH"
+
+rm "$SYMLINK_PATH"
+mkdir -p "$PROFILE_DIR"
+chown "$TARGET_USER" "$PROFILE_DIR"
+
+ln -s "$PROFILE_DIR/profile" "$SYMLINK_PATH"
+chown -h "$TARGET_USER" "$SYMLINK_PATH"
+
+touch "/home/$TARGET_USER/.profile"
+echo "export NIX_REMOTE=daemon" >> "/home/$TARGET_USER/.profile"
+echo "if [ -e /usr/local/etc/profile.d/nix.sh ]; then . /usr/local/etc/profile.d/nix.sh; fi" >> "/home/$TARGET_USER/.profile"
+
+su -lc "cd; . /usr/local/etc/profile.d/nix.sh; NIX_REMOTE=daemon nix-channel --update" "$TARGET_USER"
+END_HEREDOC
+)
+
+chmod u+rwx "$SETUP_USER_SCRIPT_PATH"
+chmod g+rx-w "$SETUP_USER_SCRIPT_PATH"
+chmod o+rx-w "$SETUP_USER_SCRIPT_PATH"
+
+# Tell user that install finished successfully
+cat <<'END_HEREDOC'
+Success!
+nix install complete.
+nix-daemon service is running.
+nix-daemon service set to init on system start.
+
+To setup nix for user jdoe, run:
+  sudo -i su -c nix-setup-user jdoe
+END_HEREDOC

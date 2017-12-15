@@ -33,18 +33,11 @@ master -------------------------------------------------------------->
            dev ------------------------------------------------------>
                            \                      /
                             feature-new-search ---
-
 ```
 
-**Shared dev checkouts**
-
-When cloning the repo into a shared directory among users in a common group, e.g., ```www-data```, be sure to chown all the files under .git to allow multiple users to push/pull:
-
-```
-sudo chown -R www-data:www-data "$(git rev-parse --show-toplevel)/.git"
-```
-
-If this is _not_ set correctly, you will get errors like, "insufficient permission for adding an object to repository database .git/objects" and "cannot open .git/FETCH_HEAD: Permission denied".
+Installation
+---
+We do not recommend attempting to install this site code as-is. There are many parts and services required that are not included here. Contact one of the [architects](https://www.wikipathways.org/index.php/WikiPathways:Team#Architects) for more details.
 
 ---
 Old Repo: http://svn.bigcat.unimaas.nl/wikipathways/

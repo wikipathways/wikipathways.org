@@ -23,7 +23,8 @@ class PathwayData {
 	}
 
 	/**
-	 * Gets the SimpleXML representation of the GPML code
+	 * Gets the SimpleXML representation of the GPML code,
+	 * as a string.
 	 */
 	function getGpml() {
 		return $this->gpml;
@@ -219,6 +220,7 @@ class PathwayData {
 			}
 		}
 	}
+
 }
 
 class Interaction {

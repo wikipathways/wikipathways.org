@@ -1,0 +1,54 @@
+#! /usr/bin/env bash
+
+set -e
+
+echo "Uninstalling Nix..."
+
+if [ "$HOME" != '/root' ]; then
+	cat >&2 <<'END_HEREDOC'
+Error: this script must be run as root.
+Please cd to the dir containing this script and run it as:
+  sudo -i su -c $(pwd)/nix-uninstall-deb-multi-user
+END_HEREDOC
+	exit;
+fi
+
+NIX_USERS=`echo $(getent group nix-users | grep -oP [a-zA-Z0-9,]+$;) || ''`;
+
+if [ -e "/etc/systemd/system/nix.service" ]; then
+	systemctl disable nix
+	systemctl stop nix
+fi
+
+# Remove daemon
+if getent group nixbld; then
+	for n in $(seq 1 10); do userdel -r "nixbld$n"; done
+	groupdel nixbld
+fi
+
+# Removing daemon and system-wide Nix stuff
+rm -rf "/nix" "/etc/systemd/system/nix.service" "/etc/default/nix" "/etc/init.d/nix" "/usr/local/etc/profile.d/nix.sh"
+# Removing root's Nix stuff, but not stuff for any other user, because it's
+# expected no one else will create this stuff for root, but it's not safe
+# to assume we can delete it for other users.
+rm -rf "/root/.nix-channels" "/root/.nix-defexpr"  "/root/.nix-profile"
+
+# Remove group nix-users:
+if getent group "nix-users"; then
+	groupdel nix-users
+fi
+
+# Tell user that install finished successfully
+cat <<'END_HEREDOC'
+Success!
+nix uninstall complete.
+nix-daemon service is disabled and removed.
+END_HEREDOC
+
+if [ "$NIX_USERS" ]; then
+	echo "(Optional) You can now remove any Nix content for users $NIX_USERS. This content may include:";
+	cat <<'END_HEREDOC'
+* the files .nix-channels, .nix-defexpr and .nix-profile in user home directories
+* any Nix content in .profile or .bashrc
+END_HEREDOC
+fi

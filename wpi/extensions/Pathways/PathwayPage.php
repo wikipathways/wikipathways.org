@@ -1,10 +1,13 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
+require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
-$wgHooks['BeforePageDisplay'][] = array('addPreloaderScript');
-
 function renderPathwayPage(&$parser, &$text, &$strip_state) {
-	global $wgUser, $wgRequest;
+	global $wgUser, $wgRequest, $wgOut;
 
 	$title = $parser->getTitle();
 	$oldId = $wgRequest->getVal( "oldid" );
@@ -19,7 +22,7 @@ function renderPathwayPage(&$parser, &$text, &$strip_state) {
 			}
 			$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 			$page = new PathwayPage($pathway);
-			$text = $page->getContent();
+			$text = $page->render();
 		} catch(Exception $e) { //Return error message on any exception
 			$text = <<<ERROR
 = Error rendering pathway page =
@@ -38,29 +41,54 @@ ERROR;
 	return true;
 }
 
-function addPreloaderScript(&$out) {
-	global $wgTitle, $wgUser, $wgScriptPath;
-/*	if($wgTitle->getNamespace() == NS_PATHWAY && $wgUser->isLoggedIn() &&
-		strstr( $out->getHTML(), "pwImage" ) !== false ) {
-		$base = $wgScriptPath . "/wpi/applet/";
-		$class = "org.wikipathways.applet.Preloader.class";
-
-		$out->addHTML("<applet code='$class' codebase='$base'
-			width='1' height='1' name='preloader'></applet>");
-	} */
-	return true;
-}
-
 class PathwayPage {
 	private $pathway;
 	private $data;
 	static $msgLoaded = false;
+	static $sectionNames = array(
+		"Navbars",
+		"PrivateWarning",
+		"Title",
+		"Diagram",
+		"DiagramFooter",
+		"AuthorInfo",
+		"Description",
+		"QualityTags",
+		"OntologyTags",
+		"Bibliography",
+		"History",
+		"Xrefs",
+		"LinkToFullPathwayPage"
+	);
+	static $sectionNamesByView = array(
+		"normal" => [
+			"Navbars",
+			"PrivateWarning",
+			"Title",
+			"Diagram",
+			"DiagramFooter",
+			"AuthorInfo",
+			"Description",
+			"QualityTags",
+			"OntologyTags",
+			"Bibliography",
+			"History",
+			"Xrefs"
+		],
+		"widget" => [
+			"Diagram",
+			"LinkToFullPathwayPage"
+		]
+	);
 
 	function __construct($pathway) {
+		global $wgMessageCache;
+
 		$this->pathway = $pathway;
 		$this->data = $pathway->getPathwayData();
+		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
+		$this->view = $view;
 
-		global $wgMessageCache;
 		if(!self::$msgLoaded) {
 			$wgMessageCache->addMessages( array(
 					'private_warning' => '{{SERVER}}{{SCRIPTPATH}}/skins/common/images/lock.png This pathway will not be visible to other users until $DATE. ' .
@@ -68,28 +96,165 @@ class PathwayPage {
 				), 'en' );
 			self::$msgLoaded = true;
 		}
+
+		/* TODO keep this for anything?
+		// We only show the "View at WikiPathways" image link when we're not at WikiPathways.
+		if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == true) {
+		}
+		//*/
 	}
 
-	function getContent() {
-		$text = <<<TEXT
-{$this->titleEditor()}
-{$this->privateWarning()}
-{{Template:PathwayPage:Top}}
-{$this->descriptionText()}
-{$this->curationTags()}
-{$this->ontologyTags()}
-{$this->bibliographyText()}
-{{Template:PathwayPage:Bottom}}
-TEXT;
-return $text;
+	static function formatPubMed($text) {
+		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
+		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {
+			foreach($ids[1] as $id) {
+				$text = str_replace($id, "[$link$id $id]", $text);
+			}
+		}
+		return $text;
 	}
 
-	function titleEditor() {
+	function render() {
+		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
+
+		$format = isset($_GET["format"]) ? $_GET["format"] : "html";
+		if ($format !== "html") {
+			$wgOut->setArticleBodyOnly(true);
+			header("Access-Control-Allow-Origin: *");
+
+#			$identifier = isset($_GET["identifier"]) ? $_GET["identifier"] : "WP4";
+#			$version = isset($_GET["version"]) ? $_GET["version"] : "0";
+#
+#			$gpml = base64_decode(json_decode(file_get_contents("https://webservice.wikipathways.org/getPathwayAs?fileType=gpml&pwId=$identifier&format=json"))->data);
+#			$gpml_parsed = new SimpleXMLElement($gpml);
+#			$organism = $gpml_parsed['Organism'];
+#
+#			echo GPMLConverter::gpml2pvjson($gpml, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+
+			$pathway = $this->pathway;
+			if ($format == "json") {
+				$jsonData = $pathway->getPvjson();
+			} else if ($format == "json") {
+				$svg = $pathway->getSvg();
+			}
+		}
+
+		$view = $this->view;
+		$enabledSectionNames = self::$sectionNamesByView[$this->view];
+
+		if (!in_array("Navbars", $enabledSectionNames)) {
+			$wgOut->setArticleBodyOnly(true);
+			// TODO the rest of this below can be done better
+			XrefPanel::addXrefPanelScripts();
+			$wgOut->addHTML('<script type="text/javascript">var wgServer="'.$wgServer.'"; var wgScriptPath="'.$wgScriptPath.'";</script>');
+			$wgOut->addHTML('<script type="text/javascript" src="'.$wgServer.'/skins/wikipathways/jquery-1.8.3.min.js"></script>');
+			$wgOut->addHTML('<link rel="stylesheet" href="/skins/wikipathways/main.css?164" type="text/css">');
+			$wgOut->addHTML('<link rel="stylesheet" href="/wpi/js/jquery-ui/jquery-ui-1.8.10.custom.css?164" type="text/css">');
+			foreach($wpiJavascriptSources as $wpiJavascriptSource) {
+				$wgOut->addHTML('<script type="text/javascript" src="'.$wpiJavascriptSource.'"></script>');
+			}
+			foreach($wpiJavascriptSnippets as $wpiJavascriptSnippet) {
+				$wgOut->addHTML('<script type="text/javascript">'.$wpiJavascriptSnippet.'</script>');
+			}
+		}
+
+		$text = '';
+		$html = '';
+		$sectionNames = self::$sectionNames;
+		foreach($sectionNames as $sectionName) {
+			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
+				#if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {}
+				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
+					$html .= $this::$sectionName();
+				} else {
+					$text .= $this::$sectionName();
+				}
+			}
+		}
+
+		$height = $view == "normal" ? "600px" : "100%";
+
+		# NOTE: excluding optional tags, as recommended by Google Style Guide:
+		# https://google.github.io/styleguide/htmlcssguide.html#Optional_Tags
+		$diagramContainerString = <<<HTML
+<!DOCTYPE html>
+<meta charset="UTF-8">
+
+<style type="text/css">
+.diagram-container {
+  background: #fefefe;
+  font-family: "Roboto";
+  position: relative;
+  width: 100%;
+  height: $height;
+  /* To avoid covering up the resize handle (grab area) */
+  border-bottom-right-radius: 1em 1em;
+  overflow: hidden;
+}
+
+.Container {
+  width: inherit;
+  height: inherit;
+  /* To avoid covering up the resize handle (grab area) */
+  border-bottom-right-radius: inherit;
+  overflow: inherit;
+}
+
+/* this is the svg */
+.Diagram {
+  width: inherit;
+  height: inherit;
+  overflow: inherit;
+  color-interpolation: auto;
+  image-rendering: auto;
+  shape-rendering: auto;
+  vector-effect: non-scaling-stroke;
+}
+</style>
+$html
+HTML;
+
+		if (!in_array("History", $enabledSectionNames)) {
+			$hideScript = <<<SCRIPT
+<script type="text/javascript">
+	window.addEventListener('DOMContentLoaded', function() {
+		document.querySelectorAll('[name="History"], [name="History"] + h2, [name="History"] + h2 + table, , [name="History"] + h2 + table + form')
+			.forEach(function(el) {
+				el.style.visibility = 'hidden';
+			});
+	});
+</script>
+SCRIPT;
+			$wgOut->addScript($$hideScript);
+		}
+
+
+		#$diagramContainer->loadHTML($diagramContainerString);
+
+		$wgOut->addHTML($diagramContainerString);
+		return $text;
+	}
+
+	function AuthorInfo() {
+		global $wgOut;
+		// TODO this is a kludge. There should be a better way to position this before the diagram.
+		$script = <<<SCRIPT
+<script type="text/javascript">
+window.addEventListener('DOMContentLoaded', function() {
+	jQuery( "#authorInfoContainer" ).insertBefore( $( ".diagram-container" ) );
+});
+</script>
+SCRIPT;
+		$wgOut->addScript($script);
+		return '{{Template:AuthorInfo}}';
+	}
+
+	function Title() {
 		$title = $this->pathway->getName();
 		return "<pageEditor id='pageTitle' type='title'>$title</pageEditor>";
 	}
 
-	function privateWarning() {
+	function PrivateWarning() {
 		global $wgScriptPath, $wgLang;
 
 		$warn = '';
@@ -106,13 +271,68 @@ return $text;
 		return $warn;
 	}
 
-	function curationTags() {
-		$tags = "== Quality Tags ==\n" .
+	function QualityTags() {
+		$tags = "\n== Quality Tags ==\n" .
 			"<CurationTags></CurationTags>";
 		return $tags;
 	}
 
-	function descriptionText() {
+	function Diagram() {
+		global $wgUser, $wgRequest, $wgOut;
+		$pathway = $this->pathway;
+		$jsonData = $pathway->getPvjson();
+		if (!$jsonData) {
+			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
+
+			return <<<HTML
+<div class="diagram-container">
+	<div class="Container">
+		<img src="$pngPath" style="height: inherit;">
+	</div>
+</div>
+<div>
+	<p>Note: Could not render interactive diagram. Displaying static pathway diagram instead.</p>
+</div>
+HTML;
+		}
+
+		$svg = $pathway->getSvg();
+
+		return <<<HTML
+<div class="diagram-container">
+	<div class="Container">
+		$svg
+	</div>
+</div>
+<script type="text/javascript" src="/wpi/js/pvjs/pvjs.js"></script>
+<script type="text/javascript">
+	if (window.hasOwnProperty("XrefPanel")) {
+	      XrefPanel.show = function(elm, id, datasource, species, symbol) {
+		jqelm = $(elm);
+		if(XrefPanel.currentTriggerDialog) {
+		  XrefPanel.currentTriggerDialog.dialog("close");
+		  XrefPanel.currentTriggerDialog.dialog("destroy");
+		}
+		jqcontent = XrefPanel.create(id, datasource, species, symbol);
+		var x = jqelm.offset().left - $(window).scrollLeft();
+		var y = jqelm.offset().top - $(window).scrollTop();
+		jqdialog = jqcontent.dialog({
+		  position: [x,y]
+		});
+		XrefPanel.currentTriggerDialog = jqdialog;
+	      }
+	}
+
+	var pvjsInput = $jsonData;
+	pvjsInput.onReady = function() {};
+	window.addEventListener('load', function() {
+		pvjs.Pvjs(".Container", pvjsInput);
+	});
+</script>
+HTML;
+	}
+
+	function Description() {
 		//Get WikiPathways description
 		$content = $this->data->getWikiDescription();
 
@@ -120,7 +340,7 @@ return $text;
 		if(!$description) {
 			$description = "<I>No description</I>";
 		}
-		$description = "== Description ==\n<div id='descr'>"
+		$description = "\n== Description ==\n<div id='descr'>"
 			 . $description . "</div>";
 
 		$description .= "<pageEditor id='descr' type='description'>$content</pageEditor>\n";
@@ -147,17 +367,17 @@ return $text;
 	}
 
 
-	function ontologyTags() {
+	function OntologyTags() {
 		global $wpiEnableOtag;
 		if($wpiEnableOtag) {
-			$otags = "== Ontology Terms ==\n" .
+			$otags = "\n== Ontology Terms ==\n" .
 				"<OntologyTags></OntologyTags>";
 			return $otags;
 		}
 	}
 
 
-	function bibliographyText() {
+	function Bibliography() {
 		global $wgUser;
 
 		$out = "<pathwayBibliography></pathwayBibliography>";
@@ -168,26 +388,9 @@ return $text;
 		if($wgUser->isLoggedIn()) {
 			$help = "{{Template:Help:LiteratureReferences}}";
 		}
-		return "== Bibliography ==\n$out\n$help";
+		return "\n== Bibliography ==\n$out\n$help";
 			//"<div id='bibliography'><div style='float:right'>$button</div>\n" .
 			//"$out</div>\n{{#editApplet:bibEdit|bibliography|0||bibliography|0|250px}}";
-	}
-
-	function editButton($href, $title, $id = '') {
-		global $wgUser, $wgTitle;
-		# Check permissions
-		if( $wgUser->isLoggedIn() && $wgTitle && $wgTitle->userCan('edit')) {
-			$label = 'edit';
-		} else {
-			/*
-			$pathwayURL = $this->pathway->getTitleObject()->getFullText();
-			$href = SITE_URL . "/index.php?title=Special:Userlogin&returnto=$pathwayURL";
-			$label = 'log in';
-			$title = 'Log in to edit';
-			*/
-			return "";
-		}
-		return "<fancyButton title='$title' href='$href' id='$id'>$label</fancyButton>";
 	}
 
 	static function getDownloadURL($pathway, $type) {
@@ -197,13 +400,70 @@ return $text;
 		return WPI_SCRIPT_URL . "?action=downloadFile&type=$type&pwTitle={$pathway->getTitleObject()->getFullText()}{$oldid}";
 	}
 
-	static function editDropDown($pathway) {
-		global $wgOut;
+	function DiagramFooter() {
+		global $wgOut, $wgUser;
+		$pathway = $this->pathway;
 
-		//AP20081218: Operating System Detection
-		require_once 'DetectBrowserOS.php';
-		//echo (browser_detection( 'os' ));
-		 $download = array(
+		//Create edit button
+		$pathwayURL = $pathway->getTitleObject()->getPrefixedURL();
+		//AP20070918
+		$helpUrl = Title::newFromText("Help:Known_problems")->getFullUrl();
+		$helpLink = '<div style="float:left;"><a href="' . $helpUrl . '"> not working?</a></div>';
+		if ($wgUser->isLoggedIn() && $pathway->getTitleObject()->userCan('edit')) {
+			$identifier = $pathway->getIdentifier();
+			$version = $pathway->getLatestRevision(); 
+			// see http://www.ericmmartin.com/projects/simplemodal/
+			$wgOut->addScript('<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/simplemodal/1.4.4/jquery.simplemodal.min.js"></script>');
+			//*
+			// this should just be a button, but the button class only works for "a" elements with text inside.
+			$openInPathVisioScript = <<<SCRIPT
+<script type="text/javascript">
+window.addEventListener('DOMContentLoaded', function() {
+	document.querySelector('#edit-button').innerHTML = '<a id="download-from-page" href="#" onclick="return false;" class="button"><span>Launch Editor</span></a>{$helpLink}';
+	$("#download-from-page").click(function() {
+		$.modal('<div id="jnlp-instructions" style="width: 610px; height:616px; cursor:pointer;" onClick="$.modal.close()"><img id="jnlp-instructions-diagram" src="/skins/wikipathways/jnlp-instructions.png" alt="The JNLP will download to your default folder. Right-click the JNLP file and select Open."> </div>',
+		{
+			overlayClose: true,
+			overlayCss: {backgroundColor: "gray"},
+			opacity: 50
+		});
+		// We need the kludge below, because the image doesn't display in FF otherwise.
+		window.setTimeout(function() {
+			$('#jnlp-instructions-diagram').attr('src', '/skins/wikipathways/jnlp-instructions.png');
+		}, 10);
+		// server must set Content-Disposition: attachment
+		// TODO why do the ampersand symbols below get parsed as HTML entities? Disabling this line and using the minimal line below for now, but we shouldn't have to do this..
+		//window.location = "{SITE_URL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}&version={$version}&filename=WikiPathwaysEditor";
+		window.location = "{SITE_URL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}";
+	});
+});
+</script>
+SCRIPT;
+			$wgOut->addScript($openInPathVisioScript);
+
+		} else {
+			if(!$wgUser->isLoggedIn()) {
+				$hrefbtn = SITE_URL . "/index.php?title=Special:Userlogin&returnto=$pathwayURL";
+				$label = "Log in to edit pathway";
+			} else if(wfReadOnly()) {
+				$hrefbtn = "";
+				$label = "Database locked";
+			} else if(!$pathway->getTitleObject()->userCan('edit')) {
+				$hrefbtn = "";
+				$label = "Editing is disabled";
+			}
+			$script = <<<SCRIPT
+<script type="text/javascript">
+window.addEventListener('DOMContentLoaded', function() {
+	document.querySelector('#edit-button').innerHTML = '<a href="{$hrefbtn}" title="{$label}" id="edit" class="button"><span>{$label}</span></a>{$helpLink}';
+});
+</script>
+SCRIPT;
+			$wgOut->addScript($script);
+		}
+
+		//Create dropdown action menu
+		$download = array(
 						'PathVisio (.gpml)' => self::getDownloadURL($pathway, 'gpml'),
 						'Scalable Vector Graphics (.svg)' => self::getDownloadURL($pathway, 'svg'),
 						'Gene list (.txt)' => self::getDownloadURL($pathway, 'txt'),
@@ -211,51 +471,60 @@ return $text;
 						'Eu.Gene (.pwf)' => self::getDownloadURL($pathway, 'pwf'),
 						'Png image (.png)' => self::getDownloadURL($pathway, 'png'),
 						'Acrobat (.pdf)' => self::getDownloadURL($pathway, 'pdf'),
-		   );
+		);
 		$downloadlist = '';
 		foreach(array_keys($download) as $key) {
-			$downloadlist .= "<li><a href='{$download[$key]}'>$key</a></li>";
+			$downloadlist .= '<li><a href="' . $download[$key] . '">' . $key . '</a></li>';
 		}
-
 		$dropdown = <<<DROPDOWN
-<ul id="nav" name="nav">
-<li><a href="#nogo2" class="button buttondown"><span>Download</span></a>
-		<ul>
-			$downloadlist
-		</ul>
-</li>
-</ul>
-
+<div style="float:right;">
+	<ul id="nav" name="nav">
+		<li>
+			<a href="#nogo2" class="button buttondown"><span>Download</span></a>
+			<ul>
+				$downloadlist
+			</ul>
+		</li>
+	</ul>
+</div>
 DROPDOWN;
-
-		$script = <<<SCRIPT
+			$dropdown = str_replace("\n", "", $dropdown);
+			$script = <<<SCRIPT
 <script type="text/javascript">
-
-sfHover = function() {
-	var sfEls = document.getElementById("nav").getElementsByTagName("LI");
-	for (var i=0; i<sfEls.length; i++) {
-		sfEls[i].onmouseover=function() {
-			this.className+=" sfhover";
-		}
-		sfEls[i].onmouseout=function() {
-			this.className=this.className.replace(" sfhover", "");
-		}
-	}
-}
-if (window.attachEvent) window.attachEvent("onload", sfHover);
-
+window.addEventListener('DOMContentLoaded', function() {
+	document.querySelector('#download-button').innerHTML = '{$dropdown}';
+});
 </script>
 SCRIPT;
-$wgOut->addScript($script);
-return $dropdown;
+		$wgOut->addScript($script);
+
+		$html = <<<HTML
+<div id="diagram-footer">
+	<div id="edit-button" style="float:left;"></div>
+	<div id="download-button"></div>
+</div>
+<br>
+HTML;
+
+		return $html;
 	}
-	static function formatPubMed($text) {
-		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
-		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {
-			foreach($ids[1] as $id) {
-				$text = str_replace($id, "[$link$id $id]", $text);
-			}
-		}
-		return $text;
+
+	function History() {
+		return "\n{{Template:PathwayPage:History}}";
+	}
+
+	function Xrefs() {
+		return "\n{{Template:PathwayPage:Xrefs}}";
+	}
+
+	function LinkToFullPathwayPage() {
+		global $wgOut, $wgScriptPath;
+		$pathway = $this->pathway;
+		$wgOut->addHTML('<div style="position:absolute;overflow:visible;bottom:0;left:15px;">' .
+			'<div id="logolink">' .
+			'<a id="wplink" target="top" href="'.$pathway->getFullUrl().'">View at ' .
+			'<img style="border:none" src="' . $wgScriptPath . '/skins/common/images/wikipathways_name.png" /></a>' .
+			'</div>' .
+			'</div>');
 	}
 }

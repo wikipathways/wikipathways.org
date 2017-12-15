@@ -5,7 +5,7 @@ require_once('../wpi.php');
  * Simple proxy to support remote bridgedb web service calls
  * from javascript.
  */
-if(!isset($wpiBridgeUrl)) $wpiBridgeUrl = 'http://webservice.bridgedb.org/';
+if(!isset($wpiBridgeUrl)) $wpiBridgeUrl = 'https://webservice.bridgedb.org/';
 
 header('Content-type: text/plain');
 

@@ -26,7 +26,12 @@ if getent group nixbld; then
 	groupdel nixbld
 fi
 
-rm -rf "/nix" "/etc/systemd/system/nix.service" "/etc/default/nix" "/etc/init.d/nix"
+# Removing daemon and system-wide Nix stuff
+rm -rf "/nix" "/etc/systemd/system/nix.service" "/etc/default/nix" "/etc/init.d/nix" "/usr/local/etc/profile.d/nix.sh"
+# Removing root's Nix stuff, but not stuff for any other user, because it's
+# expected no one else will create this stuff for root, but it's not safe
+# to assume we can delete it for other users.
+rm -rf "/root/.nix-channels" "/root/.nix-defexpr"  "/root/.nix-profile"
 
 # Remove group nix-users:
 if getent group "nix-users"; then
@@ -40,8 +45,10 @@ nix uninstall complete.
 nix-daemon service is disabled and removed.
 END_HEREDOC
 
-echo "(Optional) You can now remove any Nix content for users root,$NIX_USERS, such as:";
-cat <<'END_HEREDOC'
+if [ "$NIX_USERS" ]; then
+	echo "(Optional) You can now remove any Nix content for users $NIX_USERS. This content may include:";
+	cat <<'END_HEREDOC'
 * the files .nix-channels, .nix-defexpr and .nix-profile in user home directories
 * any Nix content in .profile or .bashrc
 END_HEREDOC
+fi

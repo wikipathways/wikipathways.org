@@ -123,9 +123,6 @@ fi
 nix-channel --add https://nixos.org/channels/nixos-17.09
 nix-channel --add https://nixos.org/channels/nixpkgs-unstable
 nix-channel --update
-# TODO what is actually needed below?
-#nix-env -u root
-nix-env -u '*'
 
 # Restrict access to Nix operations to root and a group called nix-users:
 if ! getent group "nix-users"; then

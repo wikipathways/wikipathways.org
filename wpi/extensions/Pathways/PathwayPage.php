@@ -1,7 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
 require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
 require_once(dirname( __FILE__ ) . "/HTTP2-1.1.2/HTTP2.php");
@@ -102,6 +99,114 @@ class PathwayPage {
 		return $text;
 	}
 
+	public static function onParserFirstCallInit(&$parser) {
+		global $wgOut, $wgRequest, $wgSitename;
+
+		$format;
+		$title = $_GET["title"];
+
+		$ns;
+		$baseTitle;
+		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt|gpml|owl|pwf|pdf)$~i';
+		if (preg_match($pattern, $title, $matches_out)) {
+			$ns = $matches_out[1];
+			$baseTitle = $matches_out[2];
+			$format = $matches_out[3];
+		} else {
+			$pattern2 = '~^(Pathway)\:(.*)$~i';
+			preg_match($pattern2, $title, $matches_out);
+			$ns = $matches_out[1];
+			$baseTitle = $matches_out[2];
+
+			if (isset($_GET["format"])) {
+				$format = $_GET["format"];
+			}
+		}
+
+		$title = Title::makeTitle( $ns, $baseTitle);
+		$parser->setTitle( $title );
+
+		$http = new HTTP2();
+		$type;
+		$headers = getallheaders();
+		# NOTE: filename extension overrides Accept header
+		if (isset($format)) {
+			$type = array_search($format, self::$FORMAT_TO_EXT);
+		} else if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
+			$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
+		}
+
+		$pathway;
+		if (isset($baseTitle)) {
+			$pathway = new Pathway($baseTitle);
+			$oldId = $wgRequest->getVal( "oldid" );
+			if($oldId) {
+				$pathway->setActiveRevision($oldId);
+			}
+			# TODO is this needed any more?
+			#$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
+			$wgRequest->pathway = $pathway;
+		}
+
+		if ($format == "html") {
+			$wgOut->redirect( $title->getLocalUrl() );
+			return true;
+		} else if (!isset($format) && isset($type)) {
+			$format = self::$FORMAT_TO_EXT[$type];
+			if ($format == "html") {
+				return true;
+			}
+		}
+
+		$wgOut->disable();
+		# TODO how can I determine whether wgOut is disabled in renderPathwayPage?
+		$wgRequest->htmlDisabled = true;
+		if (!$format) {
+			header('HTTP/1.1 406 Not Acceptable');
+			return false;
+		}
+
+		// Set your content type... this can XML or binary or whatever you need.
+		#header( "Content-type: text/plain; charset=utf-8" );
+
+		// If you want to force browsers to download instead of showing XML inline you can do something like this:
+		// Provide a sane filename suggestion
+		#$filename = urlencode( $wgSitename . '-' . wfTimestampNow() . '.xml' );
+		#header( "Content-disposition: attachment;filename={$filename}" );
+
+		header("Access-Control-Allow-Origin: *");
+
+		if ($format == "json") {
+			header("Content-Type: $type; charset=utf-8");
+			$jsonData = $pathway->getPvjson();
+			print $jsonData;
+		} else if ($format == "svg") {
+			header("Content-Type: $type; charset=utf-8");
+			$svg = $pathway->getSvg();
+			print $svg;
+		} else if ($format == "gpml") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'gpml'), "rb"));
+		} else if ($format == "txt") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'txt'), "rb"));
+		} else if ($format == "owl") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'owl'), "rb"));
+		} else if ($format == "pwf") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pwf'), "rb"));
+		} else if ($format == "pdf") {
+			header("Content-Type: $type");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pdf'), "rb"));
+		} else if ($format == "png") {
+			header("Content-Type: $type");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'png'), "rb"));
+		}
+
+		return false;
+	}
+
 	function render() {
 		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
 
@@ -195,100 +300,6 @@ SCRIPT;
 
 		$wgOut->addHTML($diagramContainerString);
 		return $text;
-	}
-
-	public static function onParserFirstCallInit(&$parser) {
-		global $wgOut, $wgRequest, $wgSitename;
-
-		$format;
-		$title = isset($_GET["title"]) ? $_GET["title"] : $parser->getTitle();
-
-		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt|gpml|owl|pwf|pdf)$~i';
-		if (preg_match($pattern, $title, $matches_out)) {
-			$ns = $matches_out[1];
-			$baseTitle = $matches_out[2];
-			$title = Title::makeTitle( $ns, $baseTitle);
-			$parser->setTitle( $title );
-			$format = $matches_out[3];
-		} else if (isset($_GET["format"])) {
-			$format = $_GET["format"];
-		}
-
-		$http = new HTTP2();
-		$type;
-		$headers = getallheaders();
-		# NOTE: filename extension overrides Accept header
-		if (isset($format)) {
-			$type = array_search($format, self::$FORMAT_TO_EXT);
-		} else if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
-			$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
-		}
-
-		$pathway = Pathway::newFromTitle($title);
-		$oldId = $wgRequest->getVal( "oldid" );
-		if($oldId) {
-			$pathway->setActiveRevision($oldId);
-		}
-		$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
-		$wgRequest->pathway = $pathway;
-
-		if ($format == "html") {
-			$wgOut->redirect( $title->getLocalUrl() );
-			return true;
-		} else if (!isset($format) && isset($type)) {
-			$format = self::$FORMAT_TO_EXT[$type];
-			if ($format == "html") {
-				return true;
-			}
-		}
-
-		$wgOut->disable();
-		# TODO how can I determine whether wgOut is disabled in renderPathwayPage?
-		$wgRequest->htmlDisabled = true;
-		if (!$format) {
-			header('HTTP/1.1 406 Not Acceptable');
-			return false;
-		}
-
-		// Set your content type... this can XML or binary or whatever you need.
-		#header( "Content-type: text/plain; charset=utf-8" );
-
-		// If you want to force browsers to download instead of showing XML inline you can do something like this:
-		// Provide a sane filename suggestion
-		#$filename = urlencode( $wgSitename . '-' . wfTimestampNow() . '.xml' );
-		#header( "Content-disposition: attachment;filename={$filename}" );
-
-		header("Access-Control-Allow-Origin: *");
-
-		if ($format == "json") {
-			header("Content-Type: $type; charset=utf-8");
-			$jsonData = $pathway->getPvjson();
-			print $jsonData;
-		} else if ($format == "svg") {
-			header("Content-Type: $type; charset=utf-8");
-			$svg = $pathway->getSvg();
-			print $svg;
-		} else if ($format == "gpml") {
-			header("Content-Type: $type; charset=utf-8");
-			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'gpml'), "rb"));
-		} else if ($format == "txt") {
-			header("Content-Type: $type; charset=utf-8");
-			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'txt'), "rb"));
-		} else if ($format == "owl") {
-			header("Content-Type: $type; charset=utf-8");
-			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'owl'), "rb"));
-		} else if ($format == "pwf") {
-			header("Content-Type: $type; charset=utf-8");
-			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pwf'), "rb"));
-		} else if ($format == "pdf") {
-			header("Content-Type: $type");
-			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pdf'), "rb"));
-		} else if ($format == "png") {
-			header("Content-Type: $type");
-			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'png'), "rb"));
-		}
-
-		return false;
 	}
 
 	public static function renderPathwayPage(&$parser, &$text, &$strip_state) {

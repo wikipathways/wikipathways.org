@@ -4,42 +4,11 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
 require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
+require_once(dirname( __FILE__ ) . "/HTTP2-1.1.2/HTTP2.php");
 
-$wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
-function renderPathwayPage(&$parser, &$text, &$strip_state) {
-	global $wgUser, $wgRequest, $wgOut;
 
-	$title = $parser->getTitle();
-	$oldId = $wgRequest->getVal( "oldid" );
-	if( $title && $title->getNamespace() == NS_PATHWAY &&
-		preg_match("/^\s*\<\?xml/", $text)) {
-		$parser->disableCache();
-
-		try {
-			$pathway = Pathway::newFromTitle($title);
-			if($oldId) {
-				$pathway->setActiveRevision($oldId);
-			}
-			$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
-			$page = new PathwayPage($pathway);
-			$text = $page->render();
-		} catch(Exception $e) { //Return error message on any exception
-			$text = <<<ERROR
-= Error rendering pathway page =
-This revision of the pathway probably contains invalid GPML code. If this happens to the most recent revision, try reverting
-the pathway using the pathway history displayed below or contact the site administrators (see [[WikiPathways:About]]) to resolve this problem.
-=== Pathway history ===
-<pathwayHistory></pathwayHistory>
-=== Error details ===
-<pre>
-{$e}
-</pre>
-ERROR;
-
-		}
-	}
-	return true;
-}
+$wgHooks['ParserFirstCallInit'][] = 'PathwayPage::onParserFirstCallInit';
+$wgHooks['ParserBeforeStrip'][] = array('PathwayPage::renderPathwayPage');
 
 class PathwayPage {
 	private $pathway;
@@ -116,28 +85,6 @@ class PathwayPage {
 
 	function render() {
 		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
-
-		$format = isset($_GET["format"]) ? $_GET["format"] : "html";
-		if ($format !== "html") {
-			$wgOut->setArticleBodyOnly(true);
-			header("Access-Control-Allow-Origin: *");
-
-#			$identifier = isset($_GET["identifier"]) ? $_GET["identifier"] : "WP4";
-#			$version = isset($_GET["version"]) ? $_GET["version"] : "0";
-#
-#			$gpml = base64_decode(json_decode(file_get_contents("https://webservice.wikipathways.org/getPathwayAs?fileType=gpml&pwId=$identifier&format=json"))->data);
-#			$gpml_parsed = new SimpleXMLElement($gpml);
-#			$organism = $gpml_parsed['Organism'];
-#
-#			echo GPMLConverter::gpml2pvjson($gpml, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
-
-			$pathway = $this->pathway;
-			if ($format == "json") {
-				$jsonData = $pathway->getPvjson();
-			} else if ($format == "json") {
-				$svg = $pathway->getSvg();
-			}
-		}
 
 		$view = $this->view;
 		$enabledSectionNames = self::$sectionNamesByView[$this->view];
@@ -233,6 +180,355 @@ SCRIPT;
 
 		$wgOut->addHTML($diagramContainerString);
 		return $text;
+	}
+
+	public static function onParserFirstCallInit(&$parser) {
+		global $wgOut;
+		$wgOut->disable();
+		$title = isset($_GET["title"]) ? $_GET["title"] : $parser->getTitle();
+		$format = isset($_GET["format"]) ? $_GET["format"] : "html";
+		// Set your content type... this can XML or binary or whatever you need.
+		#header( "Content-type: text/plain; charset=utf-8" );
+
+		// If you want to force browsers to download instead of showing XML inline you can do something like this:
+		// Provide a sane filename suggestion
+		#$filename = urlencode( $wgSitename . '-' . wfTimestampNow() . '.xml' );
+		#header( "Content-disposition: attachment;filename={$filename}" );
+
+		// Now you can output data directly with 'print', 'echo', etc.
+
+
+		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt)$~i';
+		if (preg_match($pattern, $title, $matches_out)) {
+			#print "<xml><hello to='world'/></xml>";
+			#var_dump(get_class_methods($parser-Title)); echo '<br>';
+	#		foreach($parser as $key=>$value) {
+	#			var_dump(get_class_methods($value)); echo '<br>';
+	#		}
+	#		echo '<br>';
+			$ns = $matches_out[1];
+			$baseTitle = $matches_out[2];
+			$namespacedTitle = $ns.':'.$baseTitle;
+			#$newTitle = Title::newFromDBKey( $baseTitle );
+			#$newTitle = Title::newFromText( $namespacedTitle );
+			#$newTitle = Title::makeTitleSafe( $ns, $baseTitle, $fragment= , $interwiki= )
+			$newTitle = Title::makeTitle( $ns, $baseTitle);
+			#$newTitle = $title::makeTitle( $ns, $baseTitle);
+			#var_dump(get_class_methods($title));
+			#var_dump($newTitle);
+			#$wgTitle = $title;
+			#$parser->setTitle( $ns.$baseTitle );
+			$parser->setTitle( $newTitle );
+			#$newTitle->mPrefixedText = $namespacedTitle;
+			#$parser->uniqPrefix = 'Pathway';
+			$title = $parser->getTitle();
+			$replacement = preg_replace("/.svg/i", "", $wgRequest->data['title']);
+			$wgRequest->data['title'] = $replacement;
+			#$parser->mTitle->mNamespace = 102;
+			#$parser->mTitle->mNamespace = $ns;
+			#echo $parser-mOutput;
+			#var_dump($title);
+			#var_dump($title);
+			#$parser->mOutput->setTitleText( $baseTitle );
+			#$parser->mOutput->prefix = $ns;
+			#$parser->mOutput->setTitleText( $ns.$baseTitle );
+			#$parser->mOutput->setDisplayTitle( $ns.$baseTitle );
+			#$parser->mTitle = $title;
+	#		foreach($parser as $key=>$value) {
+		#var_dump(get_class_methods($parser->mOutput)); echo '<br>';
+	##			if (preg_match("/.*\.svg$/", $value, $value_matches_out)) {
+	##				var_dump($key);
+	##				var_dump($value);
+	##			}
+	##			echo '<br>$key:<br>';
+	##			var_dump($key);
+	##			echo '<br>$value:<br>';
+	##			var_dump($value);
+	#			#$title->mTextform = $baseTitle;
+	#		}
+	#		echo '<br>$title:<br>';
+	#		var_dump($title);
+			$format = $matches_out[3];
+			$http = new HTTP2();
+			$supportedTypes = array(
+					'application/xhtml+xml', 'text/html',
+					'image/svg+xml',
+					'application/json'
+					);
+
+#			$type = $http->negotiateMimeType($supportedTypes, false);
+#			if ($type === false) {
+#				header('HTTP/1.1 406 Not Acceptable');
+#				echo "You don't want any of the content types I have to offer\n";
+#			} else {
+#				echo 'I\'d give you data of type: ' . $type . "\n";
+#			}
+
+			#$wgOut->redirect( $title->getLocalUrl("action=raw&format=$format"));
+			#$wgOut->redirect( $title->getLocalUrl("action=render&format=$format"));
+			if ($format !== "html") {
+				$pathway = Pathway::newFromTitle($title);
+				if($oldId) {
+					$pathway->setActiveRevision($oldId);
+				}
+
+				header("Access-Control-Allow-Origin: *");
+
+				if ($format == "json") {
+					header('Content-Type: application/json');
+					$jsonData = $pathway->getPvjson();
+					echo $jsonData;
+				} else if ($format == "svg") {
+					header('Content-Type: image/svg+xml');
+					$svg = $pathway->getSvg();
+					#echo '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
+					#echo '<!DOCTYPE svg>';
+					#$wgOut->mDebugtext = $svg;
+					#$wgOut->addHTML($svg);
+					print $svg;
+				} else if ($format == "txt") {
+					#header('Content-Type: image/svg+xml');
+					header('Content-Type: text/plain');
+					#$svg = $pathway->getSvg();
+					echo 'hello';
+					#$wgOut->addHTML($svg);
+					#echo '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
+					#echo $svg;
+				}
+			} else {
+				#$wgOut->redirect( $this->getTitle()->getLocalUrl() );
+				echo 'Redirect to normal pathway page w/out .html on end of page title';
+			}
+			return true;
+		};
+
+		return false;
+	}
+
+	public static function renderPathwayPage(&$parser, &$text, &$strip_state) {
+		global $wgUser, $wgRequest, $wgOut, $wgTitle;
+		#echo 'renderPathwayPage';
+
+		#var_dump($parser); echo '<br>';
+		#mDbkeyform
+		#var_dump($parser);
+#		$titlePattern = '~^(.*)\.(svg|png|html|json)$~i';
+#		foreach($parser as $key=>$value) {
+#			if (is_string($value) && preg_match($titlePattern, $value, $title_matches_out)) {
+#				$parser->$key = $title_matches_out[1];
+#			}
+#		}
+#		foreach($parser->mTitle as $key=>$value) {
+#			if (is_string($value) && preg_match($titlePattern, $value, $title_matches_out)) {
+#				$parser->mTitle->$key = $title_matches_out[1];
+#			}
+#		}
+		#var_dump($wgRequest->data['title']);
+		#$wgRequest->data->title = str_replace("\.svg", "", $wgRequest->data->title);
+		#$replacement = str_replace(".svg", "", $wgRequest->data['title']);
+		#var_dump($wgRequest);
+#		foreach($wgRequest->data as $key=>$value) {
+#			if (is_string($value) && preg_match($titlePattern, $value, $title_matches_out)) {
+#				$parser->mTitle->$key = $title_matches_out[1];
+#			}
+#		}
+#		foreach($parser as $key=>$value) {
+#			var_dump($value);
+#		}
+		#var_dump($parser->mTitle);
+		#var_dump($parser-mOutput);
+		#var_dump($wgRequest);
+		#echo json_encode($parser);
+		#$title = $parser->getTitle();
+		#var_dump($this); echo '<br>';
+		#var_dump($parser); echo '<br>';
+		#echo $title;
+		#var_dump($title); echo '<br>';
+		#var_dump(get_class_methods($title)); echo '<br>';
+		#foreach($title as $key=>$value) {
+			#var_dump(get_class_methods($value)); echo '<br>';
+		#}
+		#var_dump($title);
+		#var_dump(get_class_methods($parser->mOutput)); echo '<br>';
+		#foreach($parser as $key=>$value) {
+			#var_dump(get_class_methods($value)); echo '<br>';
+		#}
+		$title = isset($_GET["title"]) ? $_GET["title"] : $parser->getTitle();
+		$format = isset($_GET["format"]) ? $_GET["format"] : "html";
+		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt)$~i';
+		if (preg_match($pattern, $title, $matches_out)) {
+			$format = $matches_out[3];
+		}
+		#echo $title;
+		#echo $format;
+		if ($format !== "html") {
+			return true;
+		}
+#		if ($format !== "html") {
+#			$wgOut->setArticleBodyOnly(true);
+#			$wgOut->clearHTML();
+#			$wgOut->disable();
+#
+#			$pathway = Pathway::newFromTitle($title);
+#			if($oldId) {
+#				$pathway->setActiveRevision($oldId);
+#			}
+#
+#			header("Access-Control-Allow-Origin: *");
+#
+#			if ($format == "json") {
+#				header('Content-Type: application/json');
+#				$jsonData = $pathway->getPvjson();
+#				echo $jsonData;
+#			} else if ($format == "svg") {
+#				header('Content-Type: image/svg+xml');
+#				$svg = $pathway->getSvg();
+#				echo '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
+#				echo $svg;
+#			}
+#			return true;
+#		}
+#		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt)$~i';
+#		if (preg_match($pattern, $title, $matches_out)) {
+#			#var_dump(get_class_methods($parser-Title)); echo '<br>';
+#	#		foreach($parser as $key=>$value) {
+#	#			var_dump(get_class_methods($value)); echo '<br>';
+#	#		}
+#	#		echo '<br>';
+#			$ns = $matches_out[1];
+#			$baseTitle = $matches_out[2];
+#			$namespacedTitle = $ns.':'.$baseTitle;
+#			#$newTitle = Title::newFromDBKey( $baseTitle );
+#			#$newTitle = Title::newFromText( $namespacedTitle );
+#			#$newTitle = Title::makeTitleSafe( $ns, $baseTitle, $fragment= , $interwiki= )
+#			$newTitle = Title::makeTitle( $ns, $baseTitle);
+#			#$newTitle = $title::makeTitle( $ns, $baseTitle);
+#			#var_dump(get_class_methods($title));
+#			#var_dump($newTitle);
+#			#$wgTitle = $title;
+#			#$parser->setTitle( $ns.$baseTitle );
+#			$parser->setTitle( $newTitle );
+#			#$newTitle->mPrefixedText = $namespacedTitle;
+#			#$parser->uniqPrefix = 'Pathway';
+#			$title = $parser->getTitle();
+#			$replacement = preg_replace("/.svg/i", "", $wgRequest->data['title']);
+#			$wgRequest->data['title'] = $replacement;
+#			#$parser->mTitle->mNamespace = 102;
+#			#$parser->mTitle->mNamespace = $ns;
+#			#echo $parser-mOutput;
+#			#var_dump($title);
+#			#var_dump($title);
+#			#$parser->mOutput->setTitleText( $baseTitle );
+#			#$parser->mOutput->prefix = $ns;
+#			#$parser->mOutput->setTitleText( $ns.$baseTitle );
+#			#$parser->mOutput->setDisplayTitle( $ns.$baseTitle );
+#			#$parser->mTitle = $title;
+#	#		foreach($parser as $key=>$value) {
+#		#var_dump(get_class_methods($parser->mOutput)); echo '<br>';
+#	##			if (preg_match("/.*\.svg$/", $value, $value_matches_out)) {
+#	##				var_dump($key);
+#	##				var_dump($value);
+#	##			}
+#	##			echo '<br>$key:<br>';
+#	##			var_dump($key);
+#	##			echo '<br>$value:<br>';
+#	##			var_dump($value);
+#	#			#$title->mTextform = $baseTitle;
+#	#		}
+#	#		echo '<br>$title:<br>';
+#	#		var_dump($title);
+#			$format = $matches_out[3];
+#			$http = new HTTP2();
+#			$supportedTypes = array(
+#					'application/xhtml+xml', 'text/html',
+#					'image/svg+xml',
+#					'application/json'
+#					);
+#
+##			$type = $http->negotiateMimeType($supportedTypes, false);
+##			if ($type === false) {
+##				header('HTTP/1.1 406 Not Acceptable');
+##				echo "You don't want any of the content types I have to offer\n";
+##			} else {
+##				echo 'I\'d give you data of type: ' . $type . "\n";
+##			}
+#
+#			#$wgOut->redirect( $title->getLocalUrl("action=raw&format=$format"));
+#			#$wgOut->redirect( $title->getLocalUrl("action=render&format=$format"));
+#			if ($format !== "html") {
+#				$text = '';
+#				$wgOut->setArticleBodyOnly(true);
+#				$wgOut->clearHTML();
+#				#$wgOut->disable();
+#
+#				$pathway = Pathway::newFromTitle($title);
+#				if($oldId) {
+#					$pathway->setActiveRevision($oldId);
+#				}
+#
+#				header("Access-Control-Allow-Origin: *");
+#
+#				if ($format == "json") {
+#					header('Content-Type: application/json');
+#					$jsonData = $pathway->getPvjson();
+#					echo $jsonData;
+#				} else if ($format == "svg") {
+#					header('Content-Type: image/svg+xml');
+#					$svg = $pathway->getSvg();
+#					#echo '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
+#					#echo '<!DOCTYPE svg>';
+#					#$wgOut->mDebugtext = $svg;
+#					$wgOut->addHTML($svg);
+#				} else if ($format == "txt") {
+#					#header('Content-Type: image/svg+xml');
+#					header('Content-Type: text/plain');
+#					#$svg = $pathway->getSvg();
+#					echo 'hello';
+#					#$wgOut->addHTML($svg);
+#					#echo '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
+#					#echo $svg;
+#				}
+#			} else {
+#				$wgOut->redirect( $this->getTitle()->getLocalUrl() );
+#				#echo 'Redirect to normal pathway page w/out .html on end of page title';
+#			}
+#			return true;
+#		};
+		#var_dump($parser->mTitle->mNamespace); echo '<br>';
+		#var_dump($parser); echo '<br>';
+		#var_dump($wgRequest); echo '<br>';
+#		foreach($wgRequest as $key=>$value) {
+#			var_dump($value);
+#		}
+		$oldId = $wgRequest->getVal( "oldid" );
+		if( $title && $title->getNamespace() == NS_PATHWAY &&
+			preg_match("/^\s*\<\?xml/", $text)) {
+			$parser->disableCache();
+
+			try {
+				$pathway = Pathway::newFromTitle($title);
+				if($oldId) {
+					$pathway->setActiveRevision($oldId);
+				}
+				$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
+				$page = new PathwayPage($pathway);
+				$text = $page->render();
+			} catch(Exception $e) { //Return error message on any exception
+				$text = <<<ERROR
+= Error rendering pathway page =
+This revision of the pathway probably contains invalid GPML code. If this happens to the most recent revision, try reverting
+the pathway using the pathway history displayed below or contact the site administrators (see [[WikiPathways:About]]) to resolve this problem.
+=== Pathway history ===
+<pathwayHistory></pathwayHistory>
+=== Error details ===
+<pre>
+{$e}
+</pre>
+ERROR;
+
+			}
+		}
+		return true;
 	}
 
 	function AuthorInfo() {

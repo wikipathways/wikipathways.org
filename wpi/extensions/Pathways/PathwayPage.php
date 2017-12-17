@@ -6,10 +6,6 @@ require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
 require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
 require_once(dirname( __FILE__ ) . "/HTTP2-1.1.2/HTTP2.php");
 
-/* TEST COMMANDS
-curl -H "Accept: application/json" https://rcbranch.wikipathways.org/index.php/Pathway:WP554 | jq
-*/
-
 $wgHooks['ParserFirstCallInit'][] = 'PathwayPage::onParserFirstCallInit';
 $wgHooks['ParserBeforeStrip'][] = array('PathwayPage::renderPathwayPage');
 
@@ -68,13 +64,16 @@ class PathwayPage {
 				'application/pdf'=>'pdf',
 				'pdf'=>'pdf',
 				'application/vnd.gpml+xml'=>'gpml',
+				'application/xml'=>'gpml',
 				'gpml'=>'gpml',
 				'text/vnd.genelist+tab-separated-values'=>'txt',
+				'text/tab-separated-values'=>'txt',
 				'txt'=>'txt',
 				'text/vnd.eu.gene+plain'=>'pwf',
+				'text/plain'=>'pwf',
 				'pwf'=>'pwf',
-				'owl'=>'owl',
 				'application/vnd.biopax.rdf+xml'=>'owl',
+				'owl'=>'owl',
 				);
 
 	}
@@ -235,10 +234,11 @@ SCRIPT;
 		$http = new HTTP2();
 		$type;
 		$headers = getallheaders();
-		if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
+		# NOTE: filename extension overrides Accept header
+		if (isset($format)) {
+			$type = array_search($format, self::FORMAT_TO_EXT());
+		} else if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
 			$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
-		} else if (isset($format)) {
-			$type = array_search($format, self::SUPPORTED_TYPES());
 		}
 
 		if ($format == "html") {
@@ -333,7 +333,8 @@ SCRIPT;
 		if (isset($wgRequest->htmlDisabled)) {
 			return true;
 		}
-		$title = isset($_GET["title"]) ? $_GET["title"] : $parser->getTitle();
+		#$title = isset($_GET["title"]) ? $_GET["title"] : $parser->getTitle();
+		$title = $parser->getTitle();
 		$oldId = $wgRequest->getVal( "oldid" );
 		if( $title && $title->getNamespace() == NS_PATHWAY &&
 			preg_match("/^\s*\<\?xml/", $text)) {

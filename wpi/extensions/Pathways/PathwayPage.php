@@ -13,22 +13,8 @@ class PathwayPage {
 	private $pathway;
 	private $data;
 	static $msgLoaded = false;
-	static $sectionNames = array(
-		"Navbars",
-		"PrivateWarning",
-		"Title",
-		"Diagram",
-		"DiagramFooter",
-		"AuthorInfo",
-		"Description",
-		"QualityTags",
-		"OntologyTags",
-		"Bibliography",
-		"History",
-		"Xrefs",
-		"LinkToFullPathwayPage"
-	);
-	static $sectionNamesByView = array(
+
+	static $SECTION_NAMES_BY_VIEW = array(
 		"normal" => [
 			"Navbars",
 			"PrivateWarning",
@@ -49,37 +35,44 @@ class PathwayPage {
 		]
 	);
 
-	public static function FORMAT_TO_EXT() {
-		return array(
-				'application/xhtml+xml'=>'html',
-				'text/html'=>'html',
-				'html'=>'html',
-				'application/json+ld'=>'json',
-				'application/json'=>'json',
-				'json'=>'json',
-				'image/svg+xml'=>'svg',
-				'svg'=>'svg',
-				'image/png'=>'png',
-				'png'=>'png',
-				'application/pdf'=>'pdf',
-				'pdf'=>'pdf',
-				'application/vnd.gpml+xml'=>'gpml',
-				'application/xml'=>'gpml',
-				'gpml'=>'gpml',
-				'text/vnd.genelist+tab-separated-values'=>'txt',
-				'text/tab-separated-values'=>'txt',
-				'txt'=>'txt',
-				'text/vnd.eu.gene+plain'=>'pwf',
-				'text/plain'=>'pwf',
-				'pwf'=>'pwf',
-				'application/vnd.biopax.rdf+xml'=>'owl',
-				'owl'=>'owl',
-				);
-
+	# This is a constant. Does PHP not allow for calculated constants?
+	public static function SECTION_NAMES() {
+		$output = array();
+		foreach(self::$SECTION_NAMES_BY_VIEW as $view=>$sectionNames) {
+			$output += $sectionNames;
+		}
+		return $output;
 	}
 
+	public static $FORMAT_TO_EXT = array(
+			'application/xhtml+xml'=>'html',
+			'text/html'=>'html',
+			'html'=>'html',
+			'application/json+ld'=>'json',
+			'application/json'=>'json',
+			'json'=>'json',
+			'image/svg+xml'=>'svg',
+			'svg'=>'svg',
+			'image/png'=>'png',
+			'png'=>'png',
+			'application/pdf'=>'pdf',
+			'pdf'=>'pdf',
+			'application/vnd.gpml+xml'=>'gpml',
+			'application/xml'=>'gpml',
+			'gpml'=>'gpml',
+			'text/vnd.genelist+tab-separated-values'=>'txt',
+			'text/tab-separated-values'=>'txt',
+			'txt'=>'txt',
+			'text/vnd.eu.gene+plain'=>'pwf',
+			'text/plain'=>'pwf',
+			'pwf'=>'pwf',
+			'application/vnd.biopax.rdf+xml'=>'owl',
+			'owl'=>'owl',
+			);
+
+	# This is a constant. Does PHP not allow for calculated constants?
 	public static function SUPPORTED_TYPES() {
-		return array_keys(self::FORMAT_TO_EXT());
+		return array_keys(self::$FORMAT_TO_EXT);
 	}
 
 	function __construct($pathway) {
@@ -97,12 +90,6 @@ class PathwayPage {
 				), 'en' );
 			self::$msgLoaded = true;
 		}
-
-		/* TODO keep this for anything?
-		// We only show the "View at WikiPathways" image link when we're not at WikiPathways.
-		if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == true) {
-		}
-		//*/
 	}
 
 	static function formatPubMed($text) {
@@ -119,7 +106,7 @@ class PathwayPage {
 		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
 
 		$view = $this->view;
-		$enabledSectionNames = self::$sectionNamesByView[$this->view];
+		$enabledSectionNames = self::$SECTION_NAMES_BY_VIEW[$this->view];
 
 		if (!in_array("Navbars", $enabledSectionNames)) {
 			$wgOut->setArticleBodyOnly(true);
@@ -139,8 +126,7 @@ class PathwayPage {
 
 		$text = '';
 		$html = '';
-		$sectionNames = self::$sectionNames;
-		foreach($sectionNames as $sectionName) {
+		foreach(self::SECTION_NAMES() as $sectionName) {
 			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
 				#if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {}
 				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
@@ -207,9 +193,6 @@ SCRIPT;
 			$wgOut->addScript($$hideScript);
 		}
 
-
-		#$diagramContainer->loadHTML($diagramContainerString);
-
 		$wgOut->addHTML($diagramContainerString);
 		return $text;
 	}
@@ -236,7 +219,7 @@ SCRIPT;
 		$headers = getallheaders();
 		# NOTE: filename extension overrides Accept header
 		if (isset($format)) {
-			$type = array_search($format, self::FORMAT_TO_EXT());
+			$type = array_search($format, self::$FORMAT_TO_EXT);
 		} else if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
 			$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
 		}
@@ -246,13 +229,14 @@ SCRIPT;
 		if($oldId) {
 			$pathway->setActiveRevision($oldId);
 		}
+		$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 		$wgRequest->pathway = $pathway;
 
 		if ($format == "html") {
 			$wgOut->redirect( $title->getLocalUrl() );
 			return true;
 		} else if (!isset($format) && isset($type)) {
-			$format = self::FORMAT_TO_EXT()[$type];
+			$format = self::$FORMAT_TO_EXT[$type];
 			if ($format == "html") {
 				return true;
 			}
@@ -277,54 +261,32 @@ SCRIPT;
 		header("Access-Control-Allow-Origin: *");
 
 		if ($format == "json") {
-			#header('Content-Type: application/json; charset=utf-8');
 			header("Content-Type: $type; charset=utf-8");
 			$jsonData = $pathway->getPvjson();
 			print $jsonData;
 		} else if ($format == "svg") {
-			#header('Content-Type: image/svg+xml; charset=utf-8');
 			header("Content-Type: $type; charset=utf-8");
 			$svg = $pathway->getSvg();
-			# TODO should we add this?
-			#echo '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
 			print $svg;
 		} else if ($format == "gpml") {
-			#header('Content-Type: application/xml; charset=utf-8');
-			#header('Content-Type: application/vnd.gpml+xml; charset=utf-8');
 			header("Content-Type: $type; charset=utf-8");
 			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'gpml'), "rb"));
 		} else if ($format == "txt") {
-			//'text/vnd.genelist+tab-separated-values'
-			#header('Content-Type: text/plain; charset=utf-8');
 			header("Content-Type: $type; charset=utf-8");
 			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'txt'), "rb"));
 		} else if ($format == "owl") {
 			header("Content-Type: $type; charset=utf-8");
-			#header('Content-Type: application/xml; charset=utf-8');
-			#header('Content-Type: application/vnd.biopax.rdf+xml; charset=utf-8');
 			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'owl'), "rb"));
 		} else if ($format == "pwf") {
-			//'text/vnd.eu.gene+plain'
 			header("Content-Type: $type; charset=utf-8");
-			#header('Content-Type: text/plain; charset=utf-8');
 			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pwf'), "rb"));
 		} else if ($format == "pdf") {
 			header("Content-Type: $type");
-			#header('Content-Type: application/pdf');
 			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pdf'), "rb"));
 		} else if ($format == "png") {
-			#header('Content-Type: image/png;');
 			header("Content-Type: $type");
 			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'png'), "rb"));
 		}
-
-#						'PathVisio (.gpml)' => self::getDownloadURL($pathway, 'gpml'),
-#						'Scalable Vector Graphics (.svg)' => self::getDownloadURL($pathway, 'svg'),
-#						'Gene list (.txt)' => self::getDownloadURL($pathway, 'txt'),
-#						'Biopax level 3 (.owl)' => self::getDownloadURL($pathway, 'owl'),
-#						'Eu.Gene (.pwf)' => self::getDownloadURL($pathway, 'pwf'),
-#						'Png image (.png)' => self::getDownloadURL($pathway, 'png'),
-#						'Acrobat (.pdf)' => self::getDownloadURL($pathway, 'pdf'),
 
 		return false;
 	}
@@ -334,7 +296,6 @@ SCRIPT;
 		if (isset($wgRequest->htmlDisabled)) {
 			return true;
 		}
-		#$title = isset($_GET["title"]) ? $_GET["title"] : $parser->getTitle();
 		$title = $parser->getTitle();
 		$oldId = $wgRequest->getVal( "oldid" );
 		if( $title && $title->getNamespace() == NS_PATHWAY &&
@@ -343,7 +304,6 @@ SCRIPT;
 
 			try {
 				$pathway = $wgRequest->pathway;
-				$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 				$page = new PathwayPage($pathway);
 				$text = $page->render();
 			} catch(Exception $e) { //Return error message on any exception

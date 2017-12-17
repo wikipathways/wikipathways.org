@@ -4,7 +4,7 @@ require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
 require_once(dirname( __FILE__ ) . "/HTTP2-1.1.2/HTTP2.php");
 
 $wgHooks['ParserFirstCallInit'][] = 'PathwayPage::onParserFirstCallInit';
-$wgHooks['ParserBeforeStrip'][] = array('PathwayPage::renderPathwayPage');
+$wgHooks['ParserBeforeStrip'][] = array('PathwayPage::onParserBeforeStrip');
 
 class PathwayPage {
 	private $pathway;
@@ -122,14 +122,16 @@ class PathwayPage {
 			$baseTitle = $matches_out[2];
 			$http = new HTTP2();
 			$headers = getallheaders();
-			if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
+			# TODO why do Accept headers show up as $headers['Accept'] but not $wgRequest->headers->Accept?
+			#if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {}
+			if (isset($headers['Accept'])) {
 				$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
 			}
 		}
 
+		# TODO are these needed?
 		$title = Title::makeTitle( $ns, $baseTitle);
 		$parser->setTitle( $title );
-
 
 		$pathway;
 		if (isset($baseTitle)) {
@@ -140,7 +142,9 @@ class PathwayPage {
 			}
 			# TODO is this needed any more?
 			#$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
-			$wgRequest->pathway = $pathway;
+			$pathwayPage = new PathwayPage($pathway);
+			$wgOut->pathway = $pathway;
+			$wgOut->pathwayPage = $pathwayPage;
 		}
 
 		if ($format == "html") {
@@ -154,8 +158,8 @@ class PathwayPage {
 		}
 
 		$wgOut->disable();
-		# TODO how can I determine whether wgOut is disabled in renderPathwayPage?
-		$wgRequest->htmlDisabled = true;
+		# TODO how can I determine whether wgOut is disabled in onParserBeforeStrip?
+		$wgOut->htmlDisabled = true;
 		if (!$format) {
 			header('HTTP/1.1 406 Not Acceptable');
 			return false;
@@ -202,7 +206,42 @@ class PathwayPage {
 		return false;
 	}
 
-	function render() {
+	# TODO this is run multiple times. why?
+	# see comments such as this one: https://www.mediawiki.org/wiki/Manual_talk:Hooks/ParserBeforeStrip#Sanity_Check
+	public static function onParserBeforeStrip(&$parser, &$text, &$strip_state) {
+		global $wgOut;
+		if (isset($wgOut->htmlDisabled)) {
+			return true;
+		}
+		$title = $parser->getTitle();
+		if( $title && $title->getNamespace() == NS_PATHWAY &&
+			preg_match("/^\s*\<\?xml/", $text)) {
+			# TODO why was the parser caching disabled? I re-enabled it for now by commenting out the line below.
+			#$parser->disableCache();
+
+			try {
+				$pathway = $wgOut->pathway;
+				$pathwayPage = $wgOut->pathwayPage;
+				$text = $pathwayPage->renderHTML();
+			} catch(Exception $e) { //Return error message on any exception
+				$text = <<<ERROR
+= Error rendering pathway page =
+This revision of the pathway probably contains invalid GPML code. If this happens to the most recent revision, try reverting
+the pathway using the pathway history displayed below or contact the site administrators (see [[WikiPathways:About]]) to resolve this problem.
+=== Pathway history ===
+<pathwayHistory></pathwayHistory>
+=== Error details ===
+<pre>
+{$e}
+</pre>
+ERROR;
+
+			}
+		}
+		return true;
+	}
+
+	function renderHTML() {
 		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
 
 		$view = $this->view;
@@ -295,39 +334,6 @@ SCRIPT;
 
 		$wgOut->addHTML($diagramContainerString);
 		return $text;
-	}
-
-	public static function renderPathwayPage(&$parser, &$text, &$strip_state) {
-		global $wgUser, $wgRequest, $wgOut, $wgTitle;
-		if (isset($wgRequest->htmlDisabled)) {
-			return true;
-		}
-		$title = $parser->getTitle();
-		$oldId = $wgRequest->getVal( "oldid" );
-		if( $title && $title->getNamespace() == NS_PATHWAY &&
-			preg_match("/^\s*\<\?xml/", $text)) {
-			$parser->disableCache();
-
-			try {
-				$pathway = $wgRequest->pathway;
-				$page = new PathwayPage($pathway);
-				$text = $page->render();
-			} catch(Exception $e) { //Return error message on any exception
-				$text = <<<ERROR
-= Error rendering pathway page =
-This revision of the pathway probably contains invalid GPML code. If this happens to the most recent revision, try reverting
-the pathway using the pathway history displayed below or contact the site administrators (see [[WikiPathways:About]]) to resolve this problem.
-=== Pathway history ===
-<pathwayHistory></pathwayHistory>
-=== Error details ===
-<pre>
-{$e}
-</pre>
-ERROR;
-
-			}
-		}
-		return true;
 	}
 
 	function AuthorInfo() {

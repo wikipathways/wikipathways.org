@@ -102,39 +102,34 @@ class PathwayPage {
 	public static function onParserFirstCallInit(&$parser) {
 		global $wgOut, $wgRequest, $wgSitename;
 
-		$format;
 		$title = $_GET["title"];
-
+		$format;
+		$type;
 		$ns;
 		$baseTitle;
+
 		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt|gpml|owl|pwf|pdf)$~i';
+		# NOTE: if they conflict, filename extension takes precedence over Accept header
 		if (preg_match($pattern, $title, $matches_out)) {
 			$ns = $matches_out[1];
 			$baseTitle = $matches_out[2];
 			$format = $matches_out[3];
+			$type = array_search($format, self::$FORMAT_TO_EXT);
 		} else {
 			$pattern2 = '~^(Pathway)\:(.*)$~i';
 			preg_match($pattern2, $title, $matches_out);
 			$ns = $matches_out[1];
 			$baseTitle = $matches_out[2];
-
-			if (isset($_GET["format"])) {
-				$format = $_GET["format"];
+			$http = new HTTP2();
+			$headers = getallheaders();
+			if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
+				$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
 			}
 		}
 
 		$title = Title::makeTitle( $ns, $baseTitle);
 		$parser->setTitle( $title );
 
-		$http = new HTTP2();
-		$type;
-		$headers = getallheaders();
-		# NOTE: filename extension overrides Accept header
-		if (isset($format)) {
-			$type = array_search($format, self::$FORMAT_TO_EXT);
-		} else if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {
-			$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
-		}
 
 		$pathway;
 		if (isset($baseTitle)) {

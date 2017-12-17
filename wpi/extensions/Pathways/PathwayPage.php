@@ -241,6 +241,13 @@ SCRIPT;
 			$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
 		}
 
+		$pathway = Pathway::newFromTitle($title);
+		$oldId = $wgRequest->getVal( "oldid" );
+		if($oldId) {
+			$pathway->setActiveRevision($oldId);
+		}
+		$wgRequest->pathway = $pathway;
+
 		if ($format == "html") {
 			$wgOut->redirect( $title->getLocalUrl() );
 			return true;
@@ -266,12 +273,6 @@ SCRIPT;
 		// Provide a sane filename suggestion
 		#$filename = urlencode( $wgSitename . '-' . wfTimestampNow() . '.xml' );
 		#header( "Content-disposition: attachment;filename={$filename}" );
-
-		$pathway = Pathway::newFromTitle($title);
-		$oldId = $wgRequest->getVal( "oldid" );
-		if($oldId) {
-			$pathway->setActiveRevision($oldId);
-		}
 
 		header("Access-Control-Allow-Origin: *");
 
@@ -341,10 +342,7 @@ SCRIPT;
 			$parser->disableCache();
 
 			try {
-				$pathway = Pathway::newFromTitle($title);
-				if($oldId) {
-					$pathway->setActiveRevision($oldId);
-				}
+				$pathway = $wgRequest->pathway;
 				$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 				$page = new PathwayPage($pathway);
 				$text = $page->render();

@@ -103,14 +103,6 @@ TEXT;
 		//TODO: this timeout should be removed when we get async cacheing working
 		$streamGpml2Pvjson = create_stream("$toPvjsonCmd", array("timeout" => 4));
 		$rawPvjsonString = $streamGpml2Pvjson($gpml, true);
-		return $rawPvjsonString;
-
-		// TODO we disabled all unification, because it was overloading the server. We need to do caching or something.
-
-		//Skip bridgedb unification unless view=widget (i.e., where the unification is useful)
-		$view = isset($_GET["view"]) ? $_GET["view"] : "normal";
-		if($view != 'widget')
-			return $rawPvjsonString;
 
 ## TODO the enrich method from bridgedbjs is extremely slow when this was
 ## installed via Nix, but it may have been faster when installed via NPM.

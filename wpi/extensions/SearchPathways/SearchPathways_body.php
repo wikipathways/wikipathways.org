@@ -68,6 +68,10 @@ class SearchPathways extends SpecialPage
 			$xrefInfo = "<P>$xrefInfo</P>";
 		}
 
+		$query = htmlspecialchars( $query );
+		$ids = htmlspecialchars( $ids );
+		$codes = htmlspecialchars( $codes );
+		$type = htmlspecialchars( $type );
 		$form_method = "get";
 		$form_extra = "";
 		$search_form ="$xrefInfo<FORM $hide id='searchForm' action='$this->this_url' method='get'>

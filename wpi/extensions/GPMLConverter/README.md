@@ -5,7 +5,7 @@
 ### nix (multi-user)
 cd to the directory containing the script `nix-install-deb-multi-user` and run it as root:
 ```sh
-cd /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter
+cd wpi/extensions/GPMLConverter/nix-install
 sudo -i su -c $(pwd)/nix-install-deb-multi-user
 ```
 
@@ -16,8 +16,6 @@ To install automatically, run the `install` script:
 cd /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter
 sudo -i $(pwd)/install
 ```
-
-Otherwise, manually install following the instructions in INSTALLING_DEPS_MANUALLY.md.
 
 If Nix permissions get messed up, this command will restore them:
 ```sh
@@ -34,7 +32,9 @@ Executables will be located here:
 ## Use: convert some data
 
 ```sh
-curl "http://webservice.wikipathways.org/getPathwayAs?fileType=xml&pwId=WP554&revision=77712&format=json" | jq -r .data | base64 --decode | gpml2pvjson --id "http://identifiers.org/wikipathways/WP554" --pathway-version "77712"
+curl "http://webservice.wikipathways.org/getPathwayAs?fileType=xml&pwId=WP554&revision=77712&format=json" | \
+jq -r .data | base64 --decode | \
+gpml2pvjson --id "http://identifiers.org/wikipathways/WP554" --pathway-version "77712"
 
 curl "http://webservice.wikipathways.org/getPathwayAs?fileType=xml&pwId=WP554&revision=77712&format=xml" | xpath "*/ns1:data/text()" | base64 --decode | gpml2pvjson --id "http://identifiers.org/wikipathways/WP554" --pathway-version "77712"
 

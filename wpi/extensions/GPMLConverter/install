@@ -1,7 +1,8 @@
 #! /usr/bin/env bash
 
-# run this as: sudo -i $(pwd)/install
-# TODO why do we use "su -c" like this for installing nix but not GPMLConverter?: sudo -i su -c $(pwd)/nix-install-deb-multiuser
+# TODO which of these is better?
+  #sudo -i su -c "$(pwd)/install"
+  #sudo -i "$(pwd)/install"
 
 set -e
 
@@ -25,35 +26,47 @@ echo "Installing/Updating GPMLConverter"
 
 if [ "$HOME" != '/root' ]; then
 	cat >&2 <<'END_HEREDOC'
-Error: install be run as root.
+Error: this script must be run as root.
 Please cd to the dir containing this script and run it as:
-  sudo -i $(pwd)/install
+  sudo -i "$(pwd)/install"
 END_HEREDOC
 	exit;
 fi
 
-cd $HOME;
+cd $HOME; 
 
-# Checking Dependencies.
-echo "Ensuring nix installed and up-to-date...";
+if [ $(pwd) != '/root' ]; then
+	cat >&2 <<'END_HEREDOC'
+Error: failed to cd to /root
+END_HEREDOC
+	exit;
+fi
+
+echo "Ensuring nix is installed and up to date...";
 exit_if_not_installed nix-channel;
 exit_if_not_installed nix-env;
-
 nix-channel --update
-#nix-env -u '*'
 
 echo "Ensuring dependencies are installed...";
+#ensure_installed jq "nix-env -i jq";
+#ensure_installed jq "nix-env -f $HOME/.nix-defexpr/channels/nixos-17.09 -i jq";
+ensure_installed jq "nix-env -f <nixos-17.09> -i jq";
 
-ensure_installed jq "nix-env -i jq";
-ensure_installed node "nix-env -i nodejs";
+#ensure_installed node "nix-env -i nodejs";
+#ensure_installed node "nix-env -f $HOME/.nix-defexpr/channels/nixpkgs -i nodejs";
+ensure_installed node "nix-env -f <nixos-17.09> -i nodejs";
+
+#ensure_installed node2nix "nix-env -f $HOME/.nix-defexpr/channels/nixpkgs -iA nodePackages.node2nix";
 ensure_installed node2nix "nix-env -f <nixpkgs> -iA nodePackages.node2nix";
 
 cd $(script_dir);
 
 rm -f default.nix node-packages.nix node-env.nix;
+echo "Installing Nodejs dependencies...";
 node2nix --flatten -6 -i node-packages.json
 nix-env -f default.nix -i
 
+echo "Setting Apache env variable PATH to use Nix bin...";
 APACHE_ENV_VARS_PATH="/etc/apache2/envvars";
 NIX_BIN_PATH_GLOBAL="/root/.nix-profile/bin";
 if ! cat $APACHE_ENV_VARS_PATH | grep $NIX_BIN_PATH_GLOBAL; then

@@ -22,9 +22,9 @@ class Pathway {
 	 */
 	private static $fileTypes = array(
 		// NOTE: FILETYPE_IMG is svg
-		FILETYPE_IMG => FILETYPE_IMG,
 		FILETYPE_GPML => FILETYPE_GPML,
 		FILETYPE_JSON => FILETYPE_JSON,
+		FILETYPE_IMG => FILETYPE_IMG,
 		FILETYPE_PNG => FILETYPE_PNG,
 		FILETYPE_PDF => FILETYPE_PDF,
 		FILETYPE_PWF => FILETYPE_PWF,
@@ -32,11 +32,11 @@ class Pathway {
 		FILETYPE_BIOPAX => FILETYPE_BIOPAX,
 	);
 
-	private static $cacheSaverByFileType = array(
-		FILETYPE_GPML => saveGpmlCache, 
-		FILETYPE_IMG => getSvg, 
-		FILETYPE_JSON => getPvjson, 
-		FILETYPE_PNG => savePngCache, 
+	private $cacheSaverByFileType = array(
+		FILETYPE_GPML => 'saveGpmlCache', 
+		FILETYPE_IMG => 'getSvg', 
+		FILETYPE_JSON => 'getPvjson', 
+		FILETYPE_PNG => 'savePngCache', 
 	);
 
 	private $pwPageTitle; //The title object for the pathway page
@@ -575,6 +575,7 @@ class Pathway {
 		}
 
 		$json_path = $this->getFileLocation(FILETYPE_JSON, false);
+
 		if (file_exists($json_path)) {
 			$pvjson=file_get_contents($json_path);
 			$this->pvjson = $pvjson;
@@ -1132,9 +1133,11 @@ class Pathway {
 			$this->updateCache(FILETYPE_GPML);
 		}
 
-		if(!$fileType) { //Update all
+		if(!$fileType) { //Update all, except GPML, which was already done above
 			foreach(self::$fileTypes as $type) {
-				$this->updateCache($type);
+				if(!$fileType == FILETYPE_GPML) {
+					$this->updateCache($type);
+				}
 			}
 			return;
 		}
@@ -1252,11 +1255,13 @@ class Pathway {
 		if ( !is_dir( $dir ) && !wfMkdirParents( $dir ) ) {
 			throw new MWException( "Couldn't make directory: $dir" );
 		}
+		$this->saveGpmlCache();
 
-		if(isset($this->$cacheSaverByFileType[$fileType])) {
-			$this->$cacheSaverByFileType[$fileType]();
+		$saverName = $this->cacheSaverByFileType[$fileType];
+		if(isset($saverName)) {
+			$this::$saverName();
 		} else {
-			$gpmlFile = realpath($this->getFileLocation(FILETYPE_GPML));
+			$gpmlFile = realpath($this->getFileLocation(FILETYPE_GPML, false));
 			wfDebug( "Saving $gpmlFile to $fileType" );
 			$this->convertWithPathVisio($gpmlFile, $conFile);
 		}

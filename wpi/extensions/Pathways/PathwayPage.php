@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
 require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
 require_once(dirname( __FILE__ ) . "/HTTP2-1.1.2/HTTP2.php");
@@ -146,7 +148,7 @@ class PathwayPage {
 		}
 
 		# TODO is this needed any more?
-		#$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
+		$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 		$pathwayPage = new PathwayPage($pathway);
 		$wgOut->pathway = $pathway;
 		$wgOut->pathwayPage = $pathwayPage;
@@ -212,6 +214,7 @@ class PathwayPage {
 
 	# TODO this is run multiple times. why?
 	# see comments such as this one: https://www.mediawiki.org/wiki/Manual_talk:Hooks/ParserBeforeStrip#Sanity_Check
+	# Hook PathwayPage::onParserBeforeStrip should return true to continue hook processing or false to abort.
 	public static function onParserBeforeStrip(&$parser, &$text, &$strip_state) {
 		global $wgOut;
 		if (isset($wgOut->htmlDisabled)) {
@@ -219,6 +222,9 @@ class PathwayPage {
 		}
 
 		$title = $parser->getTitle();
+		if ($title->getText() == 'CreatePathwayPage' || empty($wgOut->pathwayPage)) {
+			return false;
+		}
 		if( $title && $title->getNamespace() == NS_PATHWAY &&
 			preg_match("/^\s*\<\?xml/", $text)) {
 			# TODO why was the parser caching disabled?

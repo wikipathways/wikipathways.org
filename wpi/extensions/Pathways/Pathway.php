@@ -14,10 +14,20 @@ class Pathway {
 	public static $ID_PREFIX = 'WP';
 	public static $DELETE_PREFIX = "Deleted pathway: ";
 
+	/* NOTE: this is used as a list of unique values, similar to Set in many other languages.
+	 * By using an array where the keys always equal their values and both are strings, we
+	 * can use isset instead of in_array, because isset is much faster.
+	 */
 	private static $fileTypes = array(
+		// NOTE: FILETYPE_IMG is svg
 		FILETYPE_IMG => FILETYPE_IMG,
 		FILETYPE_GPML => FILETYPE_GPML,
-		FILETYPE_PNG => FILETYPE_IMG,
+		FILETYPE_JSON => FILETYPE_JSON,
+		FILETYPE_PNG => FILETYPE_PNG,
+		FILETYPE_PDF => FILETYPE_PDF,
+		FILETYPE_PWF => FILETYPE_PWF,
+		FILETYPE_TXT => FILETYPE_TXT,
+		FILETYPE_BIOPAX => FILETYPE_BIOPAX,
 	);
 
 	private $pwPageTitle; //The title object for the pathway page
@@ -551,6 +561,7 @@ class Pathway {
 		if(isset($this->pvjson)) {
 			return $this->pvjson;
 		}
+		#$this->getFileLocation(
 
 		$gpml_path = $this->getFileLocation('gpml', false);
 		$identifier = $this->getIdentifier();
@@ -578,7 +589,7 @@ class Pathway {
 	 * be converted to this file type)
 	 */
 	public static function isValidFileType($fileType) {
-		return in_array($fileType, array_keys(self::$fileTypes));
+		return isset(self::$fileTypes[$fileType]);
 	}
 
 	/**
@@ -612,14 +623,6 @@ class Pathway {
 			$this->updateCache($fileType);
 		}
 		return $wgScriptPath . wfLocalFile($this->getFileName($fileType))->getUrl();
-	}
-
-	/**
-	 * Register a file type that can be exported to
-	 * (needs to be supported by the GPML exporter
-	 */
-	public static function registerFileType($fileType) {
-		self::$fileTypes[$fileType] = $fileType;
 	}
 
 	/**
@@ -1086,6 +1089,9 @@ class Pathway {
 		if($this->isOutOfDate($fileType)) {
 			wfDebug("\t->Updating cached file for $fileType\n");
 			switch($fileType) {
+				case FILETYPE_JSON:
+					$this->saveJsonCache();
+					break;
 				case FILETYPE_PNG:
 					$this->savePngCache();
 					break;
@@ -1199,10 +1205,9 @@ class Pathway {
 		$msg = wfJavaExec($cmd, $status);
 
 		if($status != 0 ) {
-			//Not needed anymore, since we now use a unique file name for
-			//each revision, so it's guaranteed to update.
-			////Remove cached GPML file
-			//unlink($gpmlFile);
+			// NOTE: Removing the cached GPML file is not needed
+			// anymore, since we now use a unique file name for
+			// each revision, so it's guaranteed to update.
 			throw new Exception("Unable to convert to $outFile:\n<BR>Status:$status\n<BR>Message:$msg\n<BR>Command:$cmd<BR>");
 			wfDebug("Unable to convert to $outFile:\n<BR>Status:$status\n<BR>Message:$msg\n<BR>Command:$cmd<BR>");
 		}
@@ -1216,6 +1221,12 @@ class Pathway {
 			writeFile($file, $gpml);
 			wfDebug( "GPML CACHE SAVED: $file" );
 		}
+	}
+
+	private function saveJsonCache() {
+		$pvjson = $this->getPvjson();
+		$output = $this->getFileLocation(FILETYPE_JSON, false);
+		file_put_contents($output, $pvjson);
 	}
 
 	private function savePngCache() {

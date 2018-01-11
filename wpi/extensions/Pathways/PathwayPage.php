@@ -102,12 +102,12 @@ class PathwayPage {
 	public static function onParserFirstCallInit(&$parser) {
 		global $wgOut, $wgRequest, $wgSitename;
 
-		$title = $_GET["title"];
 		$format;
 		$type;
 		$ns;
 		$baseTitle;
 
+		$title = $_GET["title"];
 		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt|gpml|owl|pwf|pdf)$~i';
 		# NOTE: if they conflict, filename extension takes precedence over Accept header
 		if (preg_match($pattern, $title, $matches_out)) {
@@ -129,23 +129,27 @@ class PathwayPage {
 			}
 		}
 
+		if (!$baseTitle) {
+			return true;
+		}
+
 		# TODO are these needed?
 		$title = Title::makeTitle( $ns, $baseTitle);
 		$parser->setTitle( $title );
 
 		$pathway;
-		if (isset($baseTitle)) {
-			$pathway = new Pathway($baseTitle);
-			$oldId = $wgRequest->getVal( "oldid" );
-			if($oldId) {
-				$pathway->setActiveRevision($oldId);
-			}
-			# TODO is this needed any more?
-			#$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
-			$pathwayPage = new PathwayPage($pathway);
-			$wgOut->pathway = $pathway;
-			$wgOut->pathwayPage = $pathwayPage;
+
+		$pathway = new Pathway($baseTitle);
+		$oldId = $wgRequest->getVal( "oldid" );
+		if($oldId) {
+			$pathway->setActiveRevision($oldId);
 		}
+
+		# TODO is this needed any more?
+		#$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
+		$pathwayPage = new PathwayPage($pathway);
+		$wgOut->pathway = $pathway;
+		$wgOut->pathwayPage = $pathwayPage;
 
 		if ($format == "html") {
 			$wgOut->redirect( $title->getLocalUrl() );

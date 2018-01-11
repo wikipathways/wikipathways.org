@@ -206,7 +206,6 @@ class PathwayData {
 	private function loadGpml() {
 		if(!$this->gpml) {
 			$gpml = $this->pathway->getGpml();
-
 			$this->gpml = new SimpleXMLElement($gpml);
 
 			//Pre-parse some data

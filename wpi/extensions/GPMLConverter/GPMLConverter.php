@@ -172,9 +172,8 @@ TEXT;
 			return;
 		}
 
-		$static = isset($opts["static"]) ? $opts["static"] : false;
-
-		$streamPvjsonToSvg = create_stream("$pvjs_path json2svg -s $static", array("timeout" => 2));
+		$static_str = isset($opts["static"]) ? escapeshellarg(var_export($opts["static"], true)) : 'false';
+		$streamPvjsonToSvg = create_stream("$pvjs_path json2svg -s $static_str", array("timeout" => 2));
 		return $streamPvjsonToSvg($pvjson, true);
 	}
 

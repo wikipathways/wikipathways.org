@@ -130,7 +130,7 @@ class PathwayPage {
 		}
 
 		if (!$baseTitle) {
-			return true;
+			return false;
 		}
 
 		# TODO are these needed?
@@ -215,13 +215,16 @@ class PathwayPage {
 	public static function onParserBeforeStrip(&$parser, &$text, &$strip_state) {
 		global $wgOut;
 		if (isset($wgOut->htmlDisabled)) {
-			return true;
+			return null;
 		}
+
 		$title = $parser->getTitle();
 		if( $title && $title->getNamespace() == NS_PATHWAY &&
 			preg_match("/^\s*\<\?xml/", $text)) {
-			# TODO why was the parser caching disabled? I re-enabled it for now by commenting out the line below.
-			#$parser->disableCache();
+			# TODO why was the parser caching disabled?
+			# maybe b/c of a dynamic extension?
+			# https://www.mediawiki.org/wiki/Manual:Parser_functions#Caching
+			$parser->disableCache();
 
 			try {
 				$pathway = $wgOut->pathway;

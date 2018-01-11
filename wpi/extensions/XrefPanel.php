@@ -12,7 +12,10 @@ $wgExtensionFunctions[] = "XrefPanel::xref";
 
 class XrefPanel {
 	static function xref() {
-		global $wgParser;
+		global $wgParser, $wgOut;
+		if ($wgOut->htmlDisabled) {
+			return null;
+		}
 		$wgParser->setHook( "Xref", "XrefPanel::renderXref" );
 
 		wpiAddXrefPanelScripts();

@@ -590,7 +590,7 @@ class Pathway {
 
 		if (empty($pvjson)) {
 			wfDebug( "PVJSON CACHE NOT SAVED - PVJSON MISSING" );
-			throw new Exception("Pathway->getPvjson() failed for " . $identifier . ", version " . $version);
+			throw new Exception("Pathway->getPvjson() failed for $identifier, version $version");
 		}
 
 		$this->pvjson = $pvjson;

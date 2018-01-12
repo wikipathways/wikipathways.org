@@ -1,6 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
 require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
 require_once(dirname( __FILE__ ) . "/HTTP2-1.1.2/HTTP2.php");
@@ -108,11 +106,21 @@ class PathwayPage {
 		$type;
 		$ns;
 		$baseTitle;
+		$title;
 
-		$title = $_GET["title"];
+		if (isset($_GET["title"])) {
+			$title = $_GET["title"];
+		} else {
+			wfDebug("Missing title query param");
+			return false;
+		}
 		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt|gpml|owl|pwf|pdf)$~i';
 		# NOTE: if they conflict, filename extension takes precedence over Accept header
 		if (preg_match($pattern, $title, $matches_out)) {
+			if (count($matches_out) < 4) {
+				wfDebug("matches_out count is < 4");
+				return false;
+			}
 			$ns = $matches_out[1];
 			$baseTitle = $matches_out[2];
 			$format = $matches_out[3];
@@ -120,6 +128,10 @@ class PathwayPage {
 		} else {
 			$pattern2 = '~^(Pathway)\:(.*)$~i';
 			preg_match($pattern2, $title, $matches_out);
+			if (count($matches_out) < 3) {
+				wfDebug("matches_out count is < 3");
+				return false;
+			}
 			$ns = $matches_out[1];
 			$baseTitle = $matches_out[2];
 			$http = new HTTP2();
@@ -131,7 +143,8 @@ class PathwayPage {
 			}
 		}
 
-		if (!$baseTitle) {
+		if (empty($baseTitle)) {
+			wfDebug("baseTitle is empty");
 			return false;
 		}
 
@@ -153,14 +166,21 @@ class PathwayPage {
 		$wgOut->pathway = $pathway;
 		$wgOut->pathwayPage = $pathwayPage;
 
-		if ($format == "html") {
+		if (!isset($format)) {
+			if (isset($type)) {
+				$format = self::$FORMAT_TO_EXT[$type];
+				if ($format == "html") {
+					return true;
+				}
+				wfDebug("type $type yields format $format.");
+			} else {
+				wfDebug("type $type yields format $format.");
+				wfDebug("Neither format nor type provided.");
+				throw new Exception("Neither format nor type provided.");
+			}
+		} else if ($format == "html") {
 			$wgOut->redirect( $title->getLocalUrl() );
 			return true;
-		} else if (!isset($format) && isset($type)) {
-			$format = self::$FORMAT_TO_EXT[$type];
-			if ($format == "html") {
-				return true;
-			}
 		}
 
 		$wgOut->disable();
@@ -217,14 +237,16 @@ class PathwayPage {
 	# Hook PathwayPage::onParserBeforeStrip should return true to continue hook processing or false to abort.
 	public static function onParserBeforeStrip(&$parser, &$text, &$strip_state) {
 		global $wgOut;
-		if (isset($wgOut->htmlDisabled)) {
-			return null;
+		if (isset($wgOut->htmlDisabled) && $wgOut->htmlDisabled) {
+			return false;
 		}
 
 		$title = $parser->getTitle();
+		//* TODO we didn't need this before. why do we now?
 		if ($title->getText() == 'CreatePathwayPage' || empty($wgOut->pathwayPage)) {
 			return false;
 		}
+		//*/
 		if( $title && $title->getNamespace() == NS_PATHWAY &&
 			preg_match("/^\s*\<\?xml/", $text)) {
 			# TODO why was the parser caching disabled?
@@ -280,7 +302,6 @@ ERROR;
 		$html = '';
 		foreach(self::SECTION_NAMES() as $sectionName) {
 			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
-				#if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {}
 				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
 					$html .= $this::$sectionName();
 				} else {
@@ -530,6 +551,7 @@ HTML;
 			$wgOut->addScript('<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/simplemodal/1.4.4/jquery.simplemodal.min.js"></script>');
 			//*
 			// this should just be a button, but the button class only works for "a" elements with text inside.
+			$siteURL = SITE_URL;
 			$openInPathVisioScript = <<<SCRIPT
 <script type="text/javascript">
 window.addEventListener('DOMContentLoaded', function() {
@@ -547,8 +569,8 @@ window.addEventListener('DOMContentLoaded', function() {
 		}, 10);
 		// server must set Content-Disposition: attachment
 		// TODO why do the ampersand symbols below get parsed as HTML entities? Disabling this line and using the minimal line below for now, but we shouldn't have to do this..
-		//window.location = "{$SITE_URL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}&version={$version}&filename=WikiPathwaysEditor";
-		window.location = "{$SITE_URL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}";
+		//window.location = "{$siteURL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}&version={$version}&filename=WikiPathwaysEditor";
+		window.location = "{$siteURL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}";
 	});
 });
 </script>

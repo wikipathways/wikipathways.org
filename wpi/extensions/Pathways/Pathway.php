@@ -1,6 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
 require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
@@ -567,6 +565,7 @@ class Pathway {
 	 * TODO: is caching working?
 	 */
 	public function getPvjson() {
+		wfDebug( "\r\ngetPvjson()" );
 		// TODO: should we be doing checkReadable for SVG, JSON, etc., or should there be something at the page level?
 		$this->checkReadable();
 
@@ -590,13 +589,13 @@ class Pathway {
 		$pvjson=GPMLConverter::gpml2pvjson(file_get_contents($gpml_path), array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
 
 		if (empty($pvjson)) {
-			wfDebug( "PVJSON CACHE NOT SAVED - PVJSON MISSING" );
+			wfDebug( "\r\nPVJSON CACHE NOT SAVED - PVJSON MISSING" );
 			throw new Exception("Pathway->getPvjson() failed for $identifier, version $version");
 		}
 
 		$this->pvjson = $pvjson;
 		writeFile($json_path, $pvjson);
-		wfDebug( "PVJSON CACHE SAVED: $json_path" );
+		wfDebug( "\r\nPVJSON CACHE SAVED: $json_path" );
 		return $pvjson;
 	}
 
@@ -605,6 +604,7 @@ class Pathway {
 	 * TODO: is caching working?
 	 */
 	public function getSvg() {
+		wfDebug( "\r\ngetSvg()" );
 		// TODO: should we be doing checkReadable for SVG, JSON, etc., or should there be something at the page level?
 		$this->checkReadable();
 
@@ -624,15 +624,22 @@ class Pathway {
 		}
 
 		$pvjson = $this->getPvjson();
+		wfDebug( "\r\n\t=> " . var_export($pvjson, true) );
+		if (empty($pvjson)) {
+			throw new Exception("Can't get svg if pvjson not available.");
+		}
 		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
+		wfDebug( "\r\n\t=> " . var_export($svg, true) );
 		if (empty($svg)) {
-			wfDebug( "SVG CACHE NOT SAVED - SVG MISSING" );
-			throw new Exception("Pathway->getSvg() failed for $identifier, version $version");
+			wfDebug( "\r\n\tSVG CACHE NOT SAVED - SVG MISSING" );
+			$identifier = $this->getIdentifier();
+			$version = $this->getActiveRevision();
+			throw new Exception("Pathway->getSvg() failed for identifier $identifier, version $version");
 		}
 
 		$this->svg = $svg;
 		writeFile($svg_path, $svg);
-		wfDebug( "SVG CACHE SAVED: $svg" );
+		wfDebug( "\r\n\tSVG CACHE SAVED: $svg" );
 
 		return $svg;
 	}
@@ -659,11 +666,15 @@ class Pathway {
 	 * \param whether to update the cache (if needed) or not
 	 */
 	public function getFileLocation($fileType, $updateCache = true) {
+		wfDebug("\r\n" . __METHOD__ . "(fileType: $fileType, updateCache: " . var_export($updateCache, true) . ")");
 		if($updateCache) { //Make sure to have up to date version
 			$this->updateCache($fileType);
 		}
 		$fn = $this->getFileName($fileType);
-		return wfLocalFile( $fn )->getPath();
+		#return wfLocalFile( $fn )->getPath();
+		$fileLocation = wfLocalFile( $fn )->getPath();
+		wfDebug("\r\n\t=> fileLocation: $fileLocation");
+		return $fileLocation;
 	}
 
 	/**
@@ -1127,7 +1138,7 @@ class Pathway {
 	 * or null to check all files
 	 */
 	public function updateCache($fileType = null) {
-		wfDebug("updateCache called for filetype $fileType\n");
+		wfDebug("\r\nupdateCache called for filetype $fileType\n");
 		//Make sure to update GPML cache first
 		if(!$fileType == FILETYPE_GPML) {
 			$this->updateCache(FILETYPE_GPML);
@@ -1187,7 +1198,7 @@ class Pathway {
 
 	//Check if the cached version of the GPML data derived file is out of date
 	private function isOutOfDate($fileType) {
-		wfDebug("isOutOfDate for $fileType\n");
+		wfDebug("\r\nisOutOfDate for $fileType\n");
 
 		$gpmlTitle = $this->getTitleObject();
 		$gpmlRev = Revision::newFromTitle($gpmlTitle);
@@ -1273,7 +1284,7 @@ class Pathway {
 		if($gpml) { //Only write cache if there is GPML
 			$file = $this->getFileLocation(FILETYPE_GPML, false);
 			writeFile($file, $gpml);
-			wfDebug( "GPML CACHE SAVED: $file" );
+			wfDebug( "\r\nGPML CACHE SAVED: $file" );
 		}
 	}
 
@@ -1302,6 +1313,6 @@ class Pathway {
 			throw new Exception("Unable to convert to png, no SVG rasterizer found");
 		}
 		$ex = file_exists($output);
-		wfDebug("PNG CACHE SAVED: $output, $ex;\n");
+		wfDebug("\r\nPNG CACHE SAVED: $output, $ex;\n");
 	}
 }

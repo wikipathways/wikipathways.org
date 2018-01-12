@@ -8,12 +8,10 @@ Provide an information and cross-reference panel for xrefs on a wiki page.
 
 $wgExtensionFunctions[] = "XrefPanel::xref";
 
-
-
 class XrefPanel {
 	static function xref() {
 		global $wgParser, $wgOut;
-		if ($wgOut->htmlDisabled) {
+		if (property_exists($wgOut, 'htmlDisabled') && $wgOut->htmlDisabled) {
 			return null;
 		}
 		$title = $wgParser->getTitle();

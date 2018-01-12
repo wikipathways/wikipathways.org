@@ -9,10 +9,10 @@ Provide an information and cross-reference panel for xrefs on a wiki page.
 $wgExtensionFunctions[] = "XrefPanel::xref";
 
 class XrefPanel {
-	static function xref() {
+	static function xref_bugfix_test() {
 		global $wgParser, $wgOut;
 		if (property_exists($wgOut, 'htmlDisabled') && $wgOut->htmlDisabled) {
-			return null;
+			return false;
 		}
 		$title = $wgParser->getTitle();
 		// TODO why do we need to test these now? We didn't before.
@@ -25,6 +25,12 @@ class XrefPanel {
 			$wgParser->setHook( "Xref", "XrefPanel::renderXref" );
 			wpiAddXrefPanelScripts();
 		}
+	}
+
+	static function xref() {
+		global $wgParser, $wgOut;
+		$wgParser->setHook( "Xref", "XrefPanel::renderXref" );
+		wpiAddXrefPanelScripts();
 	}
 
 	static function renderXref($input, $argv, &$parser) {

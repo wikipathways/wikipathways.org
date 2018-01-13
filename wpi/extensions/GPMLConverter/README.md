@@ -3,7 +3,7 @@
 ## Install
 
 ### Nix (multi-user)
-Install [Nix](https://nixos.org/nix/). If running a Debian system like Ubuntu, you can install with [https://github.com/ariutta/nix-install-deb-multi-user](this script).
+Install [Nix](https://nixos.org/nix/). If running a Debian system like Ubuntu, you can install with [this script](https://github.com/ariutta/nix-install-deb-multi-user).
 
 ### Use Nix to install GPMLConverter Dependencies
 

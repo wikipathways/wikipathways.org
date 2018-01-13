@@ -2,14 +2,10 @@
 
 ## Install
 
-### nix (multi-user)
-cd to the directory containing the script `nix-install-deb-multi-user` and run it as root:
-```sh
-cd wpi/extensions/GPMLConverter/nix-install
-sudo -i su -c $(pwd)/nix-install-deb-multi-user
-```
+### Nix (multi-user)
+Install [Nix](https://nixos.org/nix/). If running a Debian system like Ubuntu, you can install with [https://github.com/ariutta/nix-install-deb-multi-user](this script).
 
-### use nix to install GPMLConverter Dependencies
+### Use Nix to install GPMLConverter Dependencies
 
 To install automatically, run the `install` script:
 ```sh

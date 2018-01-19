@@ -161,8 +161,6 @@ function downloadFile($fileType, $pwTitle) {
 	if($oldid = $_REQUEST['oldid']) {
 		$pathway->setActiveRevision($oldid);
 	}
-	//Register file type for caching
-	Pathway::registerFileType($fileType);
 
 	$file = $pathway->getFileLocation($fileType);
 	$fn = $pathway->getFileName($fileType);

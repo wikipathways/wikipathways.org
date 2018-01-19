@@ -1,66 +1,17 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
 require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
+require_once(dirname( __FILE__ ) . "/HTTP2-1.1.2/HTTP2.php");
 
-$wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
-function renderPathwayPage(&$parser, &$text, &$strip_state) {
-	global $wgUser, $wgRequest, $wgOut;
-
-	$title = $parser->getTitle();
-	$oldId = $wgRequest->getVal( "oldid" );
-	if( $title && $title->getNamespace() == NS_PATHWAY &&
-		preg_match("/^\s*\<\?xml/", $text)) {
-		$parser->disableCache();
-
-		try {
-			$pathway = Pathway::newFromTitle($title);
-			if($oldId) {
-				$pathway->setActiveRevision($oldId);
-			}
-			$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
-			$page = new PathwayPage($pathway);
-			$text = $page->render();
-		} catch(Exception $e) { //Return error message on any exception
-			$text = <<<ERROR
-= Error rendering pathway page =
-This revision of the pathway probably contains invalid GPML code. If this happens to the most recent revision, try reverting
-the pathway using the pathway history displayed below or contact the site administrators (see [[WikiPathways:About]]) to resolve this problem.
-=== Pathway history ===
-<pathwayHistory></pathwayHistory>
-=== Error details ===
-<pre>
-{$e}
-</pre>
-ERROR;
-
-		}
-	}
-	return true;
-}
+$wgHooks['ParserFirstCallInit'][] = 'PathwayPage::onParserFirstCallInit';
+$wgHooks['ParserBeforeStrip'][] = array('PathwayPage::onParserBeforeStrip');
 
 class PathwayPage {
 	private $pathway;
 	private $data;
 	static $msgLoaded = false;
-	static $sectionNames = array(
-		"Navbars",
-		"PrivateWarning",
-		"Title",
-		"Diagram",
-		"DiagramFooter",
-		"AuthorInfo",
-		"Description",
-		"QualityTags",
-		"OntologyTags",
-		"Bibliography",
-		"History",
-		"Xrefs",
-		"LinkToFullPathwayPage"
-	);
-	static $sectionNamesByView = array(
+
+	static $SECTION_NAMES_BY_VIEW = array(
 		"normal" => [
 			"Navbars",
 			"PrivateWarning",
@@ -81,6 +32,46 @@ class PathwayPage {
 		]
 	);
 
+	# This is a constant. Does PHP not allow for calculated constants?
+	public static function SECTION_NAMES() {
+		$output = array();
+		foreach(self::$SECTION_NAMES_BY_VIEW as $view=>$sectionNames) {
+			$output += $sectionNames;
+		}
+		return $output;
+	}
+
+	public static $FORMAT_TO_EXT = array(
+			'application/xhtml+xml'=>'html',
+			'text/html'=>'html',
+			'html'=>'html',
+			'application/json+ld'=>'json',
+			'application/json'=>'json',
+			'json'=>'json',
+			'image/svg+xml'=>'svg',
+			'svg'=>'svg',
+			'image/png'=>'png',
+			'png'=>'png',
+			'application/pdf'=>'pdf',
+			'pdf'=>'pdf',
+			'application/vnd.gpml+xml'=>'gpml',
+			'application/xml'=>'gpml',
+			'gpml'=>'gpml',
+			'text/vnd.genelist+tab-separated-values'=>'txt',
+			'text/tab-separated-values'=>'txt',
+			'txt'=>'txt',
+			'text/vnd.eu.gene+plain'=>'pwf',
+			'text/plain'=>'pwf',
+			'pwf'=>'pwf',
+			'application/vnd.biopax.rdf+xml'=>'owl',
+			'owl'=>'owl',
+			);
+
+	# This is a constant. Does PHP not allow for calculated constants?
+	public static function SUPPORTED_TYPES() {
+		return array_keys(self::$FORMAT_TO_EXT);
+	}
+
 	function __construct($pathway) {
 		global $wgMessageCache;
 
@@ -96,12 +87,6 @@ class PathwayPage {
 				), 'en' );
 			self::$msgLoaded = true;
 		}
-
-		/* TODO keep this for anything?
-		// We only show the "View at WikiPathways" image link when we're not at WikiPathways.
-		if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == true) {
-		}
-		//*/
 	}
 
 	static function formatPubMed($text) {
@@ -114,33 +99,188 @@ class PathwayPage {
 		return $text;
 	}
 
-	function render() {
-		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
+	public static function onParserFirstCallInit(&$parser) {
+		global $wgOut, $wgRequest, $wgSitename;
 
-		$format = isset($_GET["format"]) ? $_GET["format"] : "html";
-		if ($format !== "html") {
-			$wgOut->setArticleBodyOnly(true);
-			header("Access-Control-Allow-Origin: *");
+		$format;
+		$type;
+		$ns;
+		$baseTitle;
+		$title;
 
-#			$identifier = isset($_GET["identifier"]) ? $_GET["identifier"] : "WP4";
-#			$version = isset($_GET["version"]) ? $_GET["version"] : "0";
-#
-#			$gpml = base64_decode(json_decode(file_get_contents("https://webservice.wikipathways.org/getPathwayAs?fileType=gpml&pwId=$identifier&format=json"))->data);
-#			$gpml_parsed = new SimpleXMLElement($gpml);
-#			$organism = $gpml_parsed['Organism'];
-#
-#			echo GPMLConverter::gpml2pvjson($gpml, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
-
-			$pathway = $this->pathway;
-			if ($format == "json") {
-				$jsonData = $pathway->getPvjson();
-			} else if ($format == "json") {
-				$svg = $pathway->getSvg();
+		if (isset($_GET["title"])) {
+			$title = $_GET["title"];
+		} else {
+			wfDebug("Missing title query param");
+			return false;
+		}
+		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt|gpml|owl|pwf|pdf)$~i';
+		# NOTE: if they conflict, filename extension takes precedence over Accept header
+		if (preg_match($pattern, $title, $matches_out)) {
+			if (count($matches_out) < 4) {
+				wfDebug("matches_out count is < 4");
+				return false;
+			}
+			$ns = $matches_out[1];
+			$baseTitle = $matches_out[2];
+			$format = $matches_out[3];
+			$type = array_search($format, self::$FORMAT_TO_EXT);
+		} else {
+			$pattern2 = '~^(Pathway)\:(.*)$~i';
+			preg_match($pattern2, $title, $matches_out);
+			if (count($matches_out) < 3) {
+				wfDebug("matches_out count is < 3");
+				return false;
+			}
+			$ns = $matches_out[1];
+			$baseTitle = $matches_out[2];
+			$http = new HTTP2();
+			$headers = getallheaders();
+			# TODO why do Accept headers show up as $headers['Accept'] but not $wgRequest->headers->Accept?
+			#if (isset($headers['Accept']) || (isset($wgRequest->headers) && isset($wgRequest->headers->Accept))) {}
+			if (isset($headers['Accept'])) {
+				$type = $http->negotiateMimeType(self::SUPPORTED_TYPES(), false);
 			}
 		}
 
+		if (empty($baseTitle)) {
+			wfDebug("baseTitle is empty");
+			return false;
+		}
+
+		# TODO are these needed?
+		$title = Title::makeTitle( $ns, $baseTitle);
+		$parser->setTitle( $title );
+
+		$pathway;
+
+		$pathway = new Pathway($baseTitle);
+		$oldId = $wgRequest->getVal( "oldid" );
+		if($oldId) {
+			$pathway->setActiveRevision($oldId);
+		}
+
+		# TODO is this needed any more?
+		$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
+		$pathwayPage = new PathwayPage($pathway);
+		$wgOut->pathway = $pathway;
+		$wgOut->pathwayPage = $pathwayPage;
+
+		if (!isset($format)) {
+			if (isset($type)) {
+				$format = self::$FORMAT_TO_EXT[$type];
+				if ($format == "html") {
+					return true;
+				}
+				wfDebug("type $type yields format $format.");
+			} else {
+				wfDebug("type $type yields format $format.");
+				wfDebug("Neither format nor type provided.");
+				throw new Exception("Neither format nor type provided.");
+			}
+		} else if ($format == "html") {
+			$wgOut->redirect( $title->getLocalUrl() );
+			return true;
+		}
+
+		$wgOut->disable();
+		# TODO how can I determine whether wgOut is disabled in onParserBeforeStrip?
+		$wgOut->htmlDisabled = true;
+		if (!$format) {
+			header('HTTP/1.1 406 Not Acceptable');
+			return false;
+		}
+
+		// Set your content type... this can XML or binary or whatever you need.
+		#header( "Content-type: text/plain; charset=utf-8" );
+
+		// If you want to force browsers to download instead of showing XML inline you can do something like this:
+		// Provide a sane filename suggestion
+		#$filename = urlencode( $wgSitename . '-' . wfTimestampNow() . '.xml' );
+		#header( "Content-disposition: attachment;filename={$filename}" );
+
+		header("Access-Control-Allow-Origin: *");
+
+		if ($format == "json") {
+			header("Content-Type: $type; charset=utf-8");
+			$jsonData = $pathway->getPvjson();
+			print $jsonData;
+		} else if ($format == "svg") {
+			header("Content-Type: $type; charset=utf-8");
+			$svg = $pathway->getSvg();
+			print $svg;
+		} else if ($format == "gpml") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'gpml'), "rb"));
+		} else if ($format == "txt") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'txt'), "rb"));
+		} else if ($format == "owl") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'owl'), "rb"));
+		} else if ($format == "pwf") {
+			header("Content-Type: $type; charset=utf-8");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pwf'), "rb"));
+		} else if ($format == "pdf") {
+			header("Content-Type: $type");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'pdf'), "rb"));
+		} else if ($format == "png") {
+			header("Content-Type: $type");
+			print stream_get_contents(fopen(self::getDownloadURL($pathway, 'png'), "rb"));
+		}
+
+		return false;
+	}
+
+	# TODO this is run multiple times. why?
+	# see comments such as this one: https://www.mediawiki.org/wiki/Manual_talk:Hooks/ParserBeforeStrip#Sanity_Check
+	# Hook PathwayPage::onParserBeforeStrip should return true to continue hook processing or false to abort.
+	public static function onParserBeforeStrip(&$parser, &$text, &$strip_state) {
+		global $wgOut;
+		if (isset($wgOut->htmlDisabled) && $wgOut->htmlDisabled) {
+			return false;
+		}
+
+		$title = $parser->getTitle();
+		//* TODO we didn't need this before. why do we now?
+		if ($title->getText() == 'CreatePathwayPage' || empty($wgOut->pathwayPage)) {
+			return false;
+		}
+		//*/
+		if( $title && $title->getNamespace() == NS_PATHWAY &&
+			preg_match("/^\s*\<\?xml/", $text)) {
+			# TODO why was the parser caching disabled?
+			# maybe b/c of a dynamic extension?
+			# https://www.mediawiki.org/wiki/Manual:Parser_functions#Caching
+			$parser->disableCache();
+
+			try {
+				$pathway = $wgOut->pathway;
+				$pathwayPage = $wgOut->pathwayPage;
+				$text = $pathwayPage->renderHTML();
+			} catch(Exception $e) { //Return error message on any exception
+				$text = <<<ERROR
+= Error rendering pathway page =
+This revision of the pathway probably contains invalid GPML code. If this happens to the most recent revision, try reverting
+the pathway using the pathway history displayed below or contact the site administrators (see [[WikiPathways:About]]) to resolve this problem.
+=== Pathway history ===
+<pathwayHistory></pathwayHistory>
+=== Error details ===
+<pre>
+{$e}
+</pre>
+ERROR;
+
+			}
+		}
+		return true;
+	}
+
+	function renderHTML() {
+		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
+
 		$view = $this->view;
-		$enabledSectionNames = self::$sectionNamesByView[$this->view];
+		$enabledSectionNames = self::$SECTION_NAMES_BY_VIEW[$this->view];
 
 		if (!in_array("Navbars", $enabledSectionNames)) {
 			$wgOut->setArticleBodyOnly(true);
@@ -160,10 +300,8 @@ class PathwayPage {
 
 		$text = '';
 		$html = '';
-		$sectionNames = self::$sectionNames;
-		foreach($sectionNames as $sectionName) {
+		foreach(self::SECTION_NAMES() as $sectionName) {
 			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
-				#if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {}
 				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
 					$html .= $this::$sectionName();
 				} else {
@@ -227,9 +365,6 @@ HTML;
 SCRIPT;
 			$wgOut->addScript($$hideScript);
 		}
-
-
-		#$diagramContainer->loadHTML($diagramContainerString);
 
 		$wgOut->addHTML($diagramContainerString);
 		return $text;
@@ -416,6 +551,7 @@ HTML;
 			$wgOut->addScript('<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/simplemodal/1.4.4/jquery.simplemodal.min.js"></script>');
 			//*
 			// this should just be a button, but the button class only works for "a" elements with text inside.
+			$siteURL = SITE_URL;
 			$openInPathVisioScript = <<<SCRIPT
 <script type="text/javascript">
 window.addEventListener('DOMContentLoaded', function() {
@@ -433,8 +569,8 @@ window.addEventListener('DOMContentLoaded', function() {
 		}, 10);
 		// server must set Content-Disposition: attachment
 		// TODO why do the ampersand symbols below get parsed as HTML entities? Disabling this line and using the minimal line below for now, but we shouldn't have to do this..
-		//window.location = "{$SITE_URL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}&version={$version}&filename=WikiPathwaysEditor";
-		window.location = "{$SITE_URL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}";
+		//window.location = "{$siteURL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}&version={$version}&filename=WikiPathwaysEditor";
+		window.location = "{$siteURL}/wpi/extensions/PathwayViewer/pathway-jnlp.php?identifier={$identifier}";
 	});
 });
 </script>

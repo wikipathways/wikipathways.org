@@ -14,10 +14,27 @@ class Pathway {
 	public static $ID_PREFIX = 'WP';
 	public static $DELETE_PREFIX = "Deleted pathway: ";
 
+	/* NOTE: this is used as a list of unique values, similar to Set in many other languages.
+	 * By using an array where the keys always equal their values and both are strings, we
+	 * can use isset instead of in_array, because isset is much faster.
+	 */
 	private static $fileTypes = array(
-		FILETYPE_IMG => FILETYPE_IMG,
+		// NOTE: FILETYPE_IMG is svg
 		FILETYPE_GPML => FILETYPE_GPML,
-		FILETYPE_PNG => FILETYPE_IMG,
+		FILETYPE_JSON => FILETYPE_JSON,
+		FILETYPE_IMG => FILETYPE_IMG,
+		FILETYPE_PNG => FILETYPE_PNG,
+		FILETYPE_PDF => FILETYPE_PDF,
+		FILETYPE_PWF => FILETYPE_PWF,
+		FILETYPE_TXT => FILETYPE_TXT,
+		FILETYPE_BIOPAX => FILETYPE_BIOPAX,
+	);
+
+	private $cacheSaverByFileType = array(
+		FILETYPE_GPML => 'saveGpmlCache', 
+		FILETYPE_IMG => 'getSvg', 
+		FILETYPE_JSON => 'getPvjson', 
+		FILETYPE_PNG => 'savePngCache', 
 	);
 
 	private $pwPageTitle; //The title object for the pathway page
@@ -545,31 +562,85 @@ class Pathway {
 	 * Gets the JSON representation of the GPML code,
 	 * formatted to match the structure of SVG,
 	 * as a string.
-	 * TODO: we aren't caching this
+	 * TODO: is caching working?
 	 */
 	public function getPvjson() {
+		wfDebug( "\r\ngetPvjson()" );
+		// TODO: should we be doing checkReadable for SVG, JSON, etc., or should there be something at the page level?
+		$this->checkReadable();
+
 		if(isset($this->pvjson)) {
 			return $this->pvjson;
 		}
 
-		$gpml_path = $this->getFileLocation('gpml', false);
+		$json_path = $this->getFileLocation(FILETYPE_JSON, false);
+
+		if (file_exists($json_path)) {
+			$pvjson=file_get_contents($json_path);
+			$this->pvjson = $pvjson;
+			return $pvjson;
+		}
+
+		$gpml_path = $this->getFileLocation(FILETYPE_GPML, false);
 		$identifier = $this->getIdentifier();
 		$version = $this->getActiveRevision();
 		$organism=$this->getSpecies();
 
 		$pvjson=GPMLConverter::gpml2pvjson(file_get_contents($gpml_path), array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+
+		if (empty($pvjson)) {
+			wfDebug( "\r\nPVJSON CACHE NOT SAVED - PVJSON MISSING" );
+			throw new Exception("Pathway->getPvjson() failed for $identifier, version $version");
+		}
+
 		$this->pvjson = $pvjson;
+		writeFile($json_path, $pvjson);
+		wfDebug( "\r\nPVJSON CACHE SAVED: $json_path" );
 		return $pvjson;
 	}
 
 	/**
 	 * Get the SVG for the given JSON
-	 * TODO: we aren't caching this
+	 * TODO: is caching working?
 	 */
 	public function getSvg() {
+		wfDebug( "\r\ngetSvg()" );
+		// TODO: should we be doing checkReadable for SVG, JSON, etc., or should there be something at the page level?
+		$this->checkReadable();
+
+		if(isset($this->svg)) {
+			return $this->svg;
+		}
+
+		$svg_path = $this->getFileLocation(FILETYPE_IMG, false);
+		if (file_exists($svg_path)) {
+			$svg=file_get_contents($svg_path);
+			// Checking that we're getting the SVG from pvjs, not from PathVisio.
+			$regex = "/data-reactid/";
+			if (preg_match($regex, $svg)) {
+				$this->svg = $svg;
+				return $svg;
+			}
+		}
+
 		$pvjson = $this->getPvjson();
+		wfDebug( "\r\n\t=> " . var_export($pvjson, true) );
+		if (empty($pvjson)) {
+			throw new Exception("Can't get svg if pvjson not available.");
+		}
 		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
+		wfDebug( "\r\n\t=> " . var_export($svg, true) );
+		if (empty($svg)) {
+			wfDebug( "\r\n\tSVG CACHE NOT SAVED - SVG MISSING" );
+			$identifier = $this->getIdentifier();
+			$version = $this->getActiveRevision();
+			throw new Exception("Pathway->getSvg() failed for identifier $identifier, version $version");
+		}
+
 		$this->svg = $svg;
+		writeFile($svg_path, $svg);
+		wfDebug( "\r\n\tSVG CACHE SAVED: $svg" );
+
 		return $svg;
 	}
 
@@ -578,7 +649,7 @@ class Pathway {
 	 * be converted to this file type)
 	 */
 	public static function isValidFileType($fileType) {
-		return in_array($fileType, array_keys(self::$fileTypes));
+		return isset(self::$fileTypes[$fileType]);
 	}
 
 	/**
@@ -595,11 +666,15 @@ class Pathway {
 	 * \param whether to update the cache (if needed) or not
 	 */
 	public function getFileLocation($fileType, $updateCache = true) {
+		wfDebug("\r\n" . __METHOD__ . "(fileType: $fileType, updateCache: " . var_export($updateCache, true) . ")");
 		if($updateCache) { //Make sure to have up to date version
 			$this->updateCache($fileType);
 		}
 		$fn = $this->getFileName($fileType);
-		return wfLocalFile( $fn )->getPath();
+		#return wfLocalFile( $fn )->getPath();
+		$fileLocation = wfLocalFile( $fn )->getPath();
+		wfDebug("\r\n\t=> fileLocation: $fileLocation");
+		return $fileLocation;
 	}
 
 	/**
@@ -612,14 +687,6 @@ class Pathway {
 			$this->updateCache($fileType);
 		}
 		return $wgScriptPath . wfLocalFile($this->getFileName($fileType))->getUrl();
-	}
-
-	/**
-	 * Register a file type that can be exported to
-	 * (needs to be supported by the GPML exporter
-	 */
-	public static function registerFileType($fileType) {
-		self::$fileTypes[$fileType] = $fileType;
 	}
 
 	/**
@@ -1071,31 +1138,30 @@ class Pathway {
 	 * or null to check all files
 	 */
 	public function updateCache($fileType = null) {
-		wfDebug("updateCache called for filetype $fileType\n");
+		wfDebug("\r\nupdateCache called for filetype $fileType\n");
 		//Make sure to update GPML cache first
 		if(!$fileType == FILETYPE_GPML) {
 			$this->updateCache(FILETYPE_GPML);
 		}
 
-		if(!$fileType) { //Update all
+		if(!$fileType) { //Update all, except GPML, which was already done above
 			foreach(self::$fileTypes as $type) {
-				$this->updateCache($type);
+				if(!$fileType == FILETYPE_GPML) {
+					$this->updateCache($type);
+				}
 			}
 			return;
 		}
 		if($this->isOutOfDate($fileType)) {
 			wfDebug("\t->Updating cached file for $fileType\n");
-			switch($fileType) {
-				case FILETYPE_PNG:
-					$this->savePngCache();
-					break;
-				case FILETYPE_GPML:
-					$this->saveGpmlCache();
-					break;
-				default:
-					$this->saveConvertedCache($fileType);
-					break;
+			/*
+			if(isset(self::$cacheSaverByFileType[$fileType])) {
+				self::$cacheSaverByFileType[$fileType]();
+			} else {
+				self::$saveConvertedCache($fileType);
 			}
+			//*/
+			$this->saveCache($fileType);
 		}
 	}
 
@@ -1132,7 +1198,7 @@ class Pathway {
 
 	//Check if the cached version of the GPML data derived file is out of date
 	private function isOutOfDate($fileType) {
-		wfDebug("isOutOfDate for $fileType\n");
+		wfDebug("\r\nisOutOfDate for $fileType\n");
 
 		$gpmlTitle = $this->getTitleObject();
 		$gpmlRev = Revision::newFromTitle($gpmlTitle);
@@ -1166,28 +1232,11 @@ class Pathway {
 	}
 
 	/**
-	 * Save a cached version of a filetype to be converted
-	 * from GPML
-	 */
-	private function saveConvertedCache($fileType) {
-		# Convert gpml to fileType
-		$gpmlFile = realpath($this->getFileLocation(FILETYPE_GPML));
-		wfDebug( "Saving $gpmlFile to $fileType" );
-		$conFile = $this->getFileLocation($fileType, false);
-		$dir = dirname($conFile);
-		if ( !is_dir( $dir ) && !wfMkdirParents( $dir ) ) {
-			throw new MWException( "Couldn't make directory: $dir" );
-		}
-		self::convert($gpmlFile, $conFile);
-		return $conFile;
-	}
-
-	/**
 	 * Convert the given GPML file to another
 	 * file format. The file format will be determined by the
 	 * output file extension.
 	 */
-	public static function convert($gpmlFile, $outFile) {
+	public static function convertWithPathVisio($gpmlFile, $outFile) {
 		global $wgMaxShellMemory;
 
 		$gpmlFile = realpath($gpmlFile);
@@ -1199,14 +1248,35 @@ class Pathway {
 		$msg = wfJavaExec($cmd, $status);
 
 		if($status != 0 ) {
-			//Not needed anymore, since we now use a unique file name for
-			//each revision, so it's guaranteed to update.
-			////Remove cached GPML file
-			//unlink($gpmlFile);
+			// NOTE: Removing the cached GPML file is not needed
+			// anymore, since we now use a unique file name for
+			// each revision, so it's guaranteed to update.
 			throw new Exception("Unable to convert to $outFile:\n<BR>Status:$status\n<BR>Message:$msg\n<BR>Command:$cmd<BR>");
 			wfDebug("Unable to convert to $outFile:\n<BR>Status:$status\n<BR>Message:$msg\n<BR>Command:$cmd<BR>");
 		}
 		return true;
+	}
+
+	/**
+	 * Save a cached version of a filetype, converting if needed
+	 */
+	private function saveCache($fileType) {
+		$conFile = $this->getFileLocation($fileType, false);
+		$dir = dirname($conFile);
+		if ( !is_dir( $dir ) && !wfMkdirParents( $dir ) ) {
+			throw new MWException( "Couldn't make directory: $dir" );
+		}
+		$this->saveGpmlCache();
+
+		$saverName = $this->cacheSaverByFileType[$fileType];
+		if(isset($saverName)) {
+			$this::$saverName();
+		} else {
+			$gpmlFile = realpath($this->getFileLocation(FILETYPE_GPML, false));
+			wfDebug( "Saving $gpmlFile to $fileType" );
+			$this->convertWithPathVisio($gpmlFile, $conFile);
+		}
+		return $conFile;
 	}
 
 	private function saveGpmlCache() {
@@ -1214,7 +1284,7 @@ class Pathway {
 		if($gpml) { //Only write cache if there is GPML
 			$file = $this->getFileLocation(FILETYPE_GPML, false);
 			writeFile($file, $gpml);
-			wfDebug( "GPML CACHE SAVED: $file" );
+			wfDebug( "\r\nGPML CACHE SAVED: $file" );
 		}
 	}
 
@@ -1243,6 +1313,6 @@ class Pathway {
 			throw new Exception("Unable to convert to png, no SVG rasterizer found");
 		}
 		$ex = file_exists($output);
-		wfDebug("PNG CACHE SAVED: $output, $ex;\n");
+		wfDebug("\r\nPNG CACHE SAVED: $output, $ex;\n");
 	}
 }

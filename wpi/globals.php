@@ -4,6 +4,7 @@ global $wgScriptPath;
 //File types
 define("FILETYPE_IMG", "svg");
 define("FILETYPE_GPML", "gpml");
+define("FILETYPE_JSON", "json");
 define("FILETYPE_MAPP", "mapp");
 define("FILETYPE_PNG", "png");
 define("FILETYPE_PDF", "pdf");

@@ -15,4 +15,3 @@ wpi/extensions/GPMLConverter/default.nix
 wpi/extensions/GPMLConverter/node-env.nix
 wpi/extensions/GPMLConverter/node-packages.nix
 wpi/extensions/GPMLConverter/install.log
-wpi/extensions/Pathways/HTTP2-1.1.2/

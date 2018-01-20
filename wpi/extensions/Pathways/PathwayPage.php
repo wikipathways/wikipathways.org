@@ -106,14 +106,14 @@ class PathwayPage {
 		$type;
 		$ns;
 		$baseTitle;
-		$title;
+		$title = $_GET["title"];
 
-		if (isset($_GET["title"])) {
-			$title = $_GET["title"];
-		} else {
-			wfDebug("Missing title query param");
-			return false;
-		}
+//		if (isset($_GET["title"])) {
+//			$title = $_GET["title"];
+//		} else {
+//			wfDebug("Missing title query param");
+//			return false;
+//		}
 		$pattern = '~^(Pathway)\:(.*)\.(svg|png|html|json|txt|gpml|owl|pwf|pdf)$~i';
 		# NOTE: if they conflict, filename extension takes precedence over Accept header
 		if (preg_match($pattern, $title, $matches_out)) {
@@ -128,10 +128,10 @@ class PathwayPage {
 		} else {
 			$pattern2 = '~^(Pathway)\:(.*)$~i';
 			preg_match($pattern2, $title, $matches_out);
-			if (count($matches_out) < 3) {
-				wfDebug("matches_out count is < 3");
-				return false;
-			}
+//			if (count($matches_out) < 3) {
+//				wfDebug("matches_out count is < 3");
+//				return false;
+//			}
 			$ns = $matches_out[1];
 			$baseTitle = $matches_out[2];
 			$http = new HTTP2();
@@ -145,7 +145,7 @@ class PathwayPage {
 
 		if (empty($baseTitle)) {
 			wfDebug("baseTitle is empty");
-			return false;
+			return true; //false;
 		}
 
 		# TODO are these needed?

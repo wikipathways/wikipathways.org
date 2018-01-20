@@ -8,28 +8,13 @@ Provide an information and cross-reference panel for xrefs on a wiki page.
 
 $wgExtensionFunctions[] = "XrefPanel::xref";
 
-class XrefPanel {
-	static function xref_bugfix_test() {
-		global $wgParser, $wgOut;
-		if (property_exists($wgOut, 'htmlDisabled') && $wgOut->htmlDisabled) {
-			return false;
-		}
-		$title = $wgParser->getTitle();
-		// TODO why do we need to test these now? We didn't before.
-		// Look at what happens when creating a pathway.
-		if (empty($title) || $title->getText() == 'CreatePathwayPage' || empty($wgOut->pathwayPage)) {
-			return false;
-		}
-		if( $title && $title->getNamespace() == NS_PATHWAY &&
-			preg_match("/^\s*\<\?xml/", $text)) {
-			$wgParser->setHook( "Xref", "XrefPanel::renderXref" );
-			wpiAddXrefPanelScripts();
-		}
-	}
 
+
+class XrefPanel {
 	static function xref() {
-		global $wgParser, $wgOut;
+		global $wgParser;
 		$wgParser->setHook( "Xref", "XrefPanel::renderXref" );
+
 		wpiAddXrefPanelScripts();
 	}
 

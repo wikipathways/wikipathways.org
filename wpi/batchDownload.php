@@ -5,6 +5,12 @@ require_once('wpi.php');
 //As mediawiki extension
 $wgExtensionFunctions[] = "wfBatchDownload";
 
+//Register the supported file types
+Pathway::registerFileType(FILETYPE_PDF);
+Pathway::registerFileType(FILETYPE_PWF);
+Pathway::registerFileType(FILETYPE_TXT);
+Pathway::registerFileType(FILETYPE_BIOPAX);
+
 function wfBatchDownload() {
 	global $wgParser;
 	$wgParser->setHook( "batchDownload", "BatchDownloader::createDownloadLinks" );

@@ -76,18 +76,14 @@ class PathwayData {
 	function getAllAnnotatedInteractions() {
 		if(!$this->interactions) {
 			$this->interactions = array();
-			$byGraphId = $this->byGraphId;
 			foreach($this->gpml->Interaction as $line) {
 				$startRef = (string)$line->Graphics->Point[0]['GraphRef'];
 				$points = $line->Graphics->Point;
 				$nb = count($points)-1;
 				$endRef = (string)$line->Graphics->Point[1]['GraphRef'];
 				$typeRef = (string)$line->Graphics->Point[$nb]['ArrowHead'];
-				if (empty($byGraphId) || !isset($byGraphId[$startRef]) || !isset($byGraphId[$endRef])) {
-					break;
-				}
-				$source = $byGraphId[$startRef];
-				$target = $byGraphId[$endRef];
+				$source = $this->byGraphId[$startRef];
+				$target = $this->byGraphId[$endRef];
 				$interaction =  new Interaction($source, $target, $line, $typeRef);
 				$this->interactions[] = $interaction;
 			}
@@ -210,6 +206,7 @@ class PathwayData {
 	private function loadGpml() {
 		if(!$this->gpml) {
 			$gpml = $this->pathway->getGpml();
+
 			$this->gpml = new SimpleXMLElement($gpml);
 
 			//Pre-parse some data

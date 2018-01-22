@@ -1,11 +1,9 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
-require_once(dirname( __FILE__ ) . "/../XrefPanel.php");
+require_once( "$IP/wpi/extensions/GPMLConverter/GPMLConverter.php" );
+require_once( "$IP/wpi/extensions/XrefPanel.php" );
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
+
 function renderPathwayPage(&$parser, &$text, &$strip_state) {
 	global $wgUser, $wgRequest, $wgOut;
 
@@ -22,6 +20,7 @@ function renderPathwayPage(&$parser, &$text, &$strip_state) {
 			}
 			$pathway->updateCache(FILETYPE_IMG); //In case the image page is removed
 			$page = new PathwayPage($pathway);
+			XrefPanel::xref();
 			$text = $page->render();
 		} catch(Exception $e) { //Return error message on any exception
 			$text = <<<ERROR
@@ -144,7 +143,8 @@ class PathwayPage {
 
 		if (!in_array("Navbars", $enabledSectionNames)) {
 			$wgOut->setArticleBodyOnly(true);
-			// TODO the rest of this below can be done better
+			// TODO is the following needed anymore, or is it handled by the XrefPanel::xref() call above?
+			/*
 			XrefPanel::addXrefPanelScripts();
 			$wgOut->addHTML('<script type="text/javascript">var wgServer="'.$wgServer.'"; var wgScriptPath="'.$wgScriptPath.'";</script>');
 			$wgOut->addHTML('<script type="text/javascript" src="'.$wgServer.'/skins/wikipathways/jquery-1.8.3.min.js"></script>');
@@ -156,6 +156,7 @@ class PathwayPage {
 			foreach($wpiJavascriptSnippets as $wpiJavascriptSnippet) {
 				$wgOut->addHTML('<script type="text/javascript">'.$wpiJavascriptSnippet.'</script>');
 			}
+			//*/
 		}
 
 		$text = '';

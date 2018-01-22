@@ -21,7 +21,6 @@ require_once( "$IP/wpi/extensions/button.php" );
 require_once( "$IP/wpi/extensions/pathwayThumb.php" );
 require_once( "$IP/wpi/extensions/imageLink.php" );
 require_once( "$IP/wpi/extensions/BrowsePathways/BrowsePathways.php" );
-require_once( "$IP/wpi/extensions/editApplet.php" );
 require_once( "$IP/wpi/extensions/listPathways.php" );
 require_once( "$IP/wpi/extensions/movePathway.php" );
 require_once( "$IP/wpi/extensions/deletePathway.php" );
@@ -54,11 +53,13 @@ require_once( "$IP/wpi/extensions/StubManager/StubManager.php" );
 require_once( "$IP/wpi/extensions/ParserFunctionsHelper/ParserFunctionsHelper.php" );
 require_once( "$IP/wpi/extensions/SecureHTML/SecureHTML.php" );
 require_once( "$IP/wpi/extensions/RSS/rss.php" );
-require_once( "$IP/wpi/extensions/XrefPanel.php" );
 require_once( "$IP/wpi/statistics/StatisticsHook.php" );
 require_once( "$IP/wpi/extensions/PageEditor/PageEditor.php" );
 require_once( "$IP/wpi/extensions/ContributionScores/ContributionScores.php" );
 require_once( "$IP/wpi/extensions/PullPages/PullPages.php" );
 require_once( "$IP/wpi/search.php" );
 require_once( "$IP/wpi/extensions/TissueAnalyzer/TissueAnalyzer.php" );
+
+# TODO are we even using this anymore?
+#require_once( "$IP/wpi/extensions/editApplet.php" );
 

@@ -14,12 +14,20 @@ class Pathway {
 	public static $ID_PREFIX = 'WP';
 	public static $DELETE_PREFIX = "Deleted pathway: ";
 
+	private static $fileTypesConvertableByPathVisio = array(
+		FILETYPE_IMG => FILETYPE_IMG,
+		FILETYPE_GPML => FILETYPE_GPML,
+		FILETYPE_PNG => FILETYPE_PNG,
+	);
+
+	//*
 	private static $fileTypes = array(
 		FILETYPE_IMG => FILETYPE_IMG,
 		FILETYPE_GPML => FILETYPE_GPML,
 		FILETYPE_PNG => FILETYPE_PNG,
 		FILETYPE_JSON => FILETYPE_JSON,
 	);
+	//*/
 
 	private $pwPageTitle; //The title object for the pathway page
 	private $id; //The pathway identifier
@@ -572,6 +580,13 @@ class Pathway {
 		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
 		$this->svg = $svg;
 		return $svg;
+	}
+
+	/**
+	 * Check if PathVisio-Java can convert from GPML to the given file type
+	 */
+	public static function isConvertableByPathVisio($fileType) {
+		return in_array($fileType, array_keys(self::$fileTypesConvertableByPathVisio));
 	}
 
 	/**
@@ -1179,7 +1194,11 @@ class Pathway {
 		if ( !is_dir( $dir ) && !wfMkdirParents( $dir ) ) {
 			throw new MWException( "Couldn't make directory: $dir" );
 		}
-		self::convert($gpmlFile, $conFile);
+		if (self::isConvertableByPathVisio($fileType)) {
+			self::convertWithPathVisio($gpmlFile, $conFile);
+		} else {
+			throw new MWException( "PathVisio couldn't convert this file $fileType" );
+		}
 		return $conFile;
 	}
 
@@ -1189,6 +1208,15 @@ class Pathway {
 	 * output file extension.
 	 */
 	public static function convert($gpmlFile, $outFile) {
+			throw new MWException( "Pathway::convert not expected" );
+	}
+
+	/**
+	 * Convert the given GPML file to another
+	 * file format, using PathVisio-Java. The file format will be determined by the
+	 * output file extension.
+	 */
+	public static function convertWithPathVisio($gpmlFile, $outFile) {
 		global $wgMaxShellMemory;
 
 		$gpmlFile = realpath($gpmlFile);

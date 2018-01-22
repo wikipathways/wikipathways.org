@@ -62,13 +62,6 @@ try {
 	exit;
 }
 
-/**
- * Utility function to import the required javascript for the xref panel
- */
-function wpiAddXrefPanelScripts() {
-	XrefPanel::addXrefPanelScripts();
-}
-
 function createPathwayObject($pwTitle, $oldid) {
 	$pathway = Pathway::newFromTitle($pwTitle);
 	if($oldId) {

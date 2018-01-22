@@ -1,5 +1,6 @@
 <?php
 require_once('wpi/wpi.php');
+require_once( "$IP/wpi/extensions/XrefPanel.php" );
 
 $wgExtensionFunctions[] = 'wfEditApplet';
 $wgHooks['LanguageGetMagic'][]  = 'wfEditApplet_Magic';
@@ -94,7 +95,9 @@ PRELOAD;
 		**/
 		//Add editapplet.js script
 		$wpiJavascriptSources[] = JS_SRC_EDITAPPLET;
+		// import the required javascript for the xref panel
 		wpiAddXrefPanelScripts();
+		XrefPanel::addXrefPanelScripts();
 		$output = $appletCode;
 	} catch(Exception $e) {
 		return "Error: $e";

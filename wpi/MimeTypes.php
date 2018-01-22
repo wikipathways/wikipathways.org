@@ -10,6 +10,7 @@ class MimeTypes {
 	private static $types = array(
 		FILETYPE_IMG => "image/svg+xml",
 		FILETYPE_GPML => "text/xml",
+		FILETYPE_JSON => "application/json",
 		FILETYPE_PNG => "image/png",
 		"pdf" => "application/pdf",
 		"pwf" => "text/plain"

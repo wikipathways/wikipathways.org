@@ -17,7 +17,8 @@ class Pathway {
 	private static $fileTypes = array(
 		FILETYPE_IMG => FILETYPE_IMG,
 		FILETYPE_GPML => FILETYPE_GPML,
-		FILETYPE_PNG => FILETYPE_IMG,
+		FILETYPE_PNG => FILETYPE_PNG,
+		FILETYPE_JSON => FILETYPE_JSON,
 	);
 
 	private $pwPageTitle; //The title object for the pathway page

@@ -581,6 +581,7 @@ class Pathway {
 
 		$pvjson=GPMLConverter::gpml2pvjson(file_get_contents($gpml_path), array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
 		$this->pvjson = $pvjson;
+		$this->savePvjsonCache();
 		return $pvjson;
 	}
 
@@ -1267,10 +1268,12 @@ class Pathway {
 
 	private function savePvjsonCache() {
 		wfDebug("savePvjsonCache() called\n");
-		$pvjson = $this->getPvjson();
-		if (!$pvjson) {
+		//This function is always called when GPML is converted to pvjson; which is not the case for SVG.
+		$pvjson=$this->pvjson;
+		if (!$pvjson)
+			$pvjson = $this->getPvjson();
+		if (!$pvjson) 
 			throw new MWException( "Invalid pvjson, so cannot savePvjsonCache." );
-		}
 		$file = $this->getFileLocation(FILETYPE_JSON, false);
 		writeFile($file, $pvjson);
 		$ex = file_exists($file);
@@ -1282,8 +1285,6 @@ class Pathway {
 
 	private function saveSvgCache() {
 		wfDebug("saveSvgCache() called\n");
-		// TODO: upon creating a pathway, it appears we try to update the SVG cache
-		// even before the GPML is cached. That makes something fail. What's going on?
 		$gpml_path = $this->getFileLocation(FILETYPE_GPML, false);
 		if (!$gpml_path || !file_exists($gpml_path)) {
 			throw new MWException( "saveSvgCache() failed: GPML unavailable." );

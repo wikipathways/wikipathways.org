@@ -143,8 +143,7 @@ class PathwayPage {
 
 		if (!in_array("Navbars", $enabledSectionNames)) {
 			$wgOut->setArticleBodyOnly(true);
-			// TODO is the following needed anymore, or is it handled by the XrefPanel::xref() call above?
-			/*
+			// the following is needed; the XrefPanel::xref() call above is not sufficient alone.
 			XrefPanel::addXrefPanelScripts();
 			$wgOut->addHTML('<script type="text/javascript">var wgServer="'.$wgServer.'"; var wgScriptPath="'.$wgScriptPath.'";</script>');
 			$wgOut->addHTML('<script type="text/javascript" src="'.$wgServer.'/skins/wikipathways/jquery-1.8.3.min.js"></script>');
@@ -156,7 +155,6 @@ class PathwayPage {
 			foreach($wpiJavascriptSnippets as $wpiJavascriptSnippet) {
 				$wgOut->addHTML('<script type="text/javascript">'.$wpiJavascriptSnippet.'</script>');
 			}
-			//*/
 		}
 
 		$text = '';

@@ -334,7 +334,7 @@ $wgShowExceptionDetails = true;
 $wgShowSQLErrors = true;
 
 // Set to true for debugging info. Note this also runs "error_reporting(E_ALL ^ E_NOTICE);" at the bottom of this file.
-$wgProfiling = true;
+#$wgProfiling = true;
 if ($wgProfiling) {
 	# Use single debug log file for all requests
 	$wgDebugLogFile = WPI_SCRIPT_PATH . '/tmp/wikipathwaysdebug.txt';
@@ -451,4 +451,3 @@ if (!$wgProfiling) {
 	error_reporting(E_ALL);
 	//*/
 }
-error_reporting(E_ALL ^ E_NOTICE);  

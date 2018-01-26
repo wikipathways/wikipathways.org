@@ -306,7 +306,7 @@ function loginold($name, $pass) {
 function getPathwayAs($fileType, $pwId, $revision = 0) {
 	try {
 		$p = new Pathway($pwId);
-		$p->setActiveRevision($revision);
+		if($revision) $p->setActiveRevision($revision);
 		$data = file_get_contents($p->getFileLocation($fileType));
 	} catch(Exception $e) {
 		throw new WSFault("Receiver", "Unable to get pathway: " . $e);

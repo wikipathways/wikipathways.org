@@ -3,6 +3,7 @@ require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
+use WikiPathways\GPMLConverter;
 // TODO why don't the following work?
 //require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
 //require_once("../GPMLConverter/GPMLConverter.php");
@@ -18,7 +19,7 @@ class Pathway {
 		# TODO: svg is convertable by PathVisio, but we're
 		# using gpml2pvjson instead. Can we still have it
 		# defined here?
-		#FILETYPE_IMG => FILETYPE_IMG,
+		FILETYPE_IMG => FILETYPE_IMG,
 		FILETYPE_GPML => FILETYPE_GPML,
 		FILETYPE_PNG => FILETYPE_PNG,
 	);
@@ -156,18 +157,18 @@ class Pathway {
 	public function getPathwayData() {
 		wfDebug("getPathwayData() called\n");
 		//Return null when deleted and not querying an older revision
-		if($this->isDeleted(false, $this->getActiveRevision())) {
+		if ($this->isDeleted(false, $this->getActiveRevision())) {
 			return null;
 		}
 		//Only create when asked for (performance)
-		if(!$this->pwData) {
+		if (!$this->pwData) {
 			$this->pwData = new PathwayData($this);
 		}
 		return $this->pwData;
 	}
 
 	public function getPermissionManager() {
-		if(!$this->permissionMgr) {
+		if (!$this->permissionMgr) {
 			$this->permissionMgr = new PermissionManager($this->getTitleObject()->getArticleId());
 		}
 		return $this->permissionMgr;
@@ -179,7 +180,7 @@ class Pathway {
 	 */
 	public function makePrivate($user) {
 		$title = $this->getTitleObject();
-		if($title->userCan(PermissionManager::$ACTION_MANAGE)) {
+		if ($title->userCan(PermissionManager::$ACTION_MANAGE)) {
 			$mgr = $this->getPermissionManager();
 			$pp = new PagePermissions($title->getArticleId());
 			$pp->addReadWrite($user->getId());
@@ -214,7 +215,7 @@ class Pathway {
 	 * pathway.
 	 */
 	private function checkReadable() {
-		if(!$this->isReadable()) {
+		if (!$this->isReadable()) {
 			throw new Exception("Current user doesn't have permissions to view this pathway");
 		}
 	}
@@ -566,12 +567,14 @@ class Pathway {
 		wfDebug("getPvjson() called\n");
 
 		if(isset($this->pvjson)) {
+			wfDebug("Returning pvjson from memory\n");
 			return $this->pvjson;
 		}
 
-		$filepath = $this->getFileLocation(FILETYPE_JSON, false);
-		if ($filepath && file_exists($filepath)) {
-			return file_get_contents($filepath);
+		$file = $this->getFileLocation(FILETYPE_JSON, false);
+		if ($file && file_exists($file)) {
+			wfDebug("Returning pvjson from cache $file\n");
+			return file_get_contents($file);
 		}
 
 		$gpml_path = $this->getFileLocation(FILETYPE_GPML, false);
@@ -580,6 +583,7 @@ class Pathway {
 		$organism=$this->getSpecies();
 
 		$pvjson=GPMLConverter::gpml2pvjson(file_get_contents($gpml_path), array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+		wfDebug("Converted gpml to pvjson\n");
 		$this->pvjson = $pvjson;
 		$this->savePvjsonCache();
 		return $pvjson;
@@ -593,16 +597,21 @@ class Pathway {
 		wfDebug("getSvg() called\n");
 
 		if(isset($this->svg)) {
+			wfDebug("Returning svg from memory\n");
 			return $this->svg;
 		}
 
-		$filepath = $this->getFileLocation(FILETYPE_IMG, false);
-		if ($filepath && file_exists($filepath)) {
-			return file_get_contents($filepath);
+		$file = $this->getFileLocation(FILETYPE_IMG, false);
+		if ($file && file_exists($file)) {
+			wfDebug("Returning svg from cache $file\n");
+			return file_get_contents($file);
 		}
 
+		wfDebug("need to get pvjson in order to get svg\n");
 		$pvjson = $this->getPvjson();
+		wfDebug("got pvjson in process of getting svg\n");
 		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
+		wfDebug("got svg\n");
 		$this->svg = $svg;
 		return $svg;
 	}
@@ -1119,25 +1128,26 @@ class Pathway {
 		if($this->isOutOfDate($fileType)) {
 			wfDebug("\t->Updating cached file for $fileType\n");
 			switch($fileType) {
-				case FILETYPE_PNG:
-					$this->savePngCache();
-					break;
 				case FILETYPE_GPML:
 					$this->saveGpmlCache();
 					break;
 				case FILETYPE_JSON:
 					$this->savePvjsonCache();
 					break;
+				//*
 				case FILETYPE_IMG:
 					$this->saveSvgCache();
 					break;
-				case self::isConvertableByPathVisio($fileType):
-					$this->saveConvertedByPathVisioCache($fileType);
+				//*/
+				case FILETYPE_PNG:
+					$this->savePngCache();
 					break;
 				default:
-					throw new MWException( "Couldn't convert file type: $fileType" );
-					#$this->saveConvertedByPathVisioCache($fileType);
-					#break;
+					if (self::isConvertableByPathVisio($fileType)) {
+						$this->saveConvertedByPathVisioCache($fileType);
+					} else {
+						throw new MWException( "Couldn't convert file type: $fileType" );
+					}
 			}
 		}
 	}
@@ -1270,11 +1280,18 @@ class Pathway {
 		wfDebug("savePvjsonCache() called\n");
 		//This function is always called when GPML is converted to pvjson; which is not the case for SVG.
 		$pvjson=$this->pvjson;
-		if (!$pvjson)
+
+		if (!$pvjson) {
 			$pvjson = $this->getPvjson();
-		if (!$pvjson) 
-			throw new MWException( "Invalid pvjson, so cannot savePvjsonCache." );
+		}
+
+		if (!$pvjson) {
+			wfDebug( "Invalid pvjson, so cannot savePvjsonCache." );
+			return;
+		}
+
 		$file = $this->getFileLocation(FILETYPE_JSON, false);
+		wfDebug("savePvjsonCache: Need to write pvjson to $file\n");
 		writeFile($file, $pvjson);
 		$ex = file_exists($file);
 		if (!$ex) {
@@ -1291,7 +1308,8 @@ class Pathway {
 		}
 		$svg = $this->getSvg();
 		if (!$svg) {
-			throw new Exception("Unable to convert to svg");
+			wfDebug( "Unable to convert to svg, so cannot saveSvgCache." );
+			return;
 		}
 		$file = $this->getFileLocation(FILETYPE_IMG, false);
 		writeFile($file, $svg);

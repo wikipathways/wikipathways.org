@@ -1,7 +1,4 @@
 <?php
-
-
-
 require_once( "$IP/wpi/extensions/PathwayOfTheDay/PathwayOfTheDay.php" );
 require_once( "$IP/wpi/extensions/siteStats.php" );
 require_once( "$IP/wpi/extensions/pathwayInfo.php" );
@@ -21,6 +18,8 @@ require_once( "$IP/wpi/extensions/button.php" );
 require_once( "$IP/wpi/extensions/pathwayThumb.php" );
 require_once( "$IP/wpi/extensions/imageLink.php" );
 require_once( "$IP/wpi/extensions/BrowsePathways/BrowsePathways.php" );
+# TODO are we using this anymore?
+#require_once( "$IP/wpi/extensions/editApplet.php" );
 require_once( "$IP/wpi/extensions/listPathways.php" );
 require_once( "$IP/wpi/extensions/movePathway.php" );
 require_once( "$IP/wpi/extensions/deletePathway.php" );
@@ -53,13 +52,12 @@ require_once( "$IP/wpi/extensions/StubManager/StubManager.php" );
 require_once( "$IP/wpi/extensions/ParserFunctionsHelper/ParserFunctionsHelper.php" );
 require_once( "$IP/wpi/extensions/SecureHTML/SecureHTML.php" );
 require_once( "$IP/wpi/extensions/RSS/rss.php" );
+# Should we load this here, or should we reference XrefPanel from the files that depend on it?
+#require_once( "$IP/wpi/extensions/XrefPanel.php" );
 require_once( "$IP/wpi/statistics/StatisticsHook.php" );
 require_once( "$IP/wpi/extensions/PageEditor/PageEditor.php" );
 require_once( "$IP/wpi/extensions/ContributionScores/ContributionScores.php" );
 require_once( "$IP/wpi/extensions/PullPages/PullPages.php" );
 require_once( "$IP/wpi/search.php" );
 require_once( "$IP/wpi/extensions/TissueAnalyzer/TissueAnalyzer.php" );
-
-# TODO are we even using this anymore?
-#require_once( "$IP/wpi/extensions/editApplet.php" );
 

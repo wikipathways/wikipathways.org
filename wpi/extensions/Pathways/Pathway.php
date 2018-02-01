@@ -1321,6 +1321,9 @@ class Pathway {
 	}
 
 	private function savePngCache() {
+		// NOTE: Inkscape has an open issue for not supporting
+		// the CSS property dominant-baseline.
+		// https://bugs.launchpad.net/inkscape/+bug/811862
 		wfDebug("savePngCache() called\n");
 		global $wgSVGConverters, $wgSVGConverter, $wgSVGConverterPath;
 

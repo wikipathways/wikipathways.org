@@ -330,21 +330,25 @@ $wgHooks['AbortNewAccount'][] = 'abortOnBadDomain';
 # Errors/Debug
 #########################
 
-$wgShowExceptionDetails = true;
-$wgShowSQLErrors = true;
+// Note this also controls error_reporting setting at the bottom of this file.
+$showErrors = false;
+if ($showErrors) {
+	$wgShowExceptionDetails = true;
+	$wgShowSQLErrors = true;
 
-// Set to true for debugging info. Note this also runs "error_reporting(E_ALL ^ E_NOTICE);" at the bottom of this file.
-#$wgProfiling = true;
-if ($wgProfiling) {
-	# Use single debug log file for all requests
-	$wgDebugLogFile = WPI_SCRIPT_PATH . '/tmp/wikipathwaysdebug.txt';
+	// Set to true for debugging info.
+	$wgProfiling = true;
+	if ($wgProfiling) {
+		# Use single debug log file for all requests
+		$wgDebugLogFile = WPI_SCRIPT_PATH . '/tmp/wikipathwaysdebug.txt';
 
-	# Use a separate debug log file for each request.
-	/*
-	if ( !defined( "STDIN" ) ) {
-		$wgDebugLogFile .= "-" . $_SERVER['REQUEST_METHOD'] . "-" . urlencode( $_SERVER['REQUEST_URI'] );
+		# Use a separate debug log file for each request.
+		/*
+		if ( !defined( "STDIN" ) ) {
+			$wgDebugLogFile .= "-" . $_SERVER['REQUEST_METHOD'] . "-" . urlencode( $_SERVER['REQUEST_URI'] );
+		}
+		//*/
 	}
-	//*/
 }
 
 ##New Autoloads
@@ -442,12 +446,11 @@ $wgGroupPermissions[ 'curator'    ][ 'autocurate'     ] = true;
 // be highlighted on the browse page
 $wgPathwayRecentSinceDays = 30;
 
-if (!$wgProfiling) {
+if (!$showErrors) {
 	// Do not display E_NOTICE PHP errors
 	error_reporting(E_ALL ^ E_NOTICE);  
-	/*
+} else {
 	ini_set('display_errors', 1);
 	ini_set('display_startup_errors', 1);
 	error_reporting(E_ALL);
-	//*/
 }

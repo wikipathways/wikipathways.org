@@ -1,5 +1,7 @@
 # Pathways
 
+Note the dependency on the GPMLConverter extension. Be sure to follow the instructions in that extension's README.md.
+
 ## TEST COMMANDS for HTTP2 lib
 For generating json from any pathway
 ```sh

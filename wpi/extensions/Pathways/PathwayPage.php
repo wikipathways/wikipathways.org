@@ -303,7 +303,7 @@ HTML;
 		$svg
 	</div>
 </div>
-<script type="text/javascript" src="/wpi/js/pvjs/pvjs.js"></script>
+<script type="text/javascript" src="/wpi/extensions/GPMLConverter/pvjs.js"></script>
 <script type="text/javascript">
 	if (window.hasOwnProperty("XrefPanel")) {
 	      XrefPanel.show = function(elm, id, datasource, species, symbol) {

@@ -331,7 +331,7 @@ $wgHooks['AbortNewAccount'][] = 'abortOnBadDomain';
 #########################
 
 // Note this also controls error_reporting setting at the bottom of this file.
-#$showErrors = true;
+$showErrors = false;
 if ($showErrors) {
 	$wgShowExceptionDetails = true;
 	$wgShowSQLErrors = true;
@@ -450,9 +450,7 @@ if (!$showErrors) {
 	// Do not display E_NOTICE PHP errors
 	error_reporting(E_ALL ^ E_NOTICE);  
 } else {
-	//*
 	ini_set('display_errors', 1);
 	ini_set('display_startup_errors', 1);
 	error_reporting(E_ALL);
-	//*/
 }

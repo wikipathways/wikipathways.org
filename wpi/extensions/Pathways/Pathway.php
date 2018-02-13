@@ -2,7 +2,7 @@
 require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
-require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
+require_once(dirname( __FILE__ ) . "/../GPMLConverter/src/GPMLConverter.php");
 use WikiPathways\GPMLConverter;
 // TODO why don't the following work?
 //require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
@@ -19,9 +19,13 @@ class Pathway {
 		# TODO: svg is convertable by PathVisio, but we're
 		# using gpml2pvjson instead. Can we still have it
 		# defined here?
-		FILETYPE_IMG => FILETYPE_IMG,
 		FILETYPE_GPML => FILETYPE_GPML,
+		FILETYPE_IMG => FILETYPE_IMG,
+		FILETYPE_PDF => FILETYPE_PDF,
 		FILETYPE_PNG => FILETYPE_PNG,
+		FILETYPE_PWF => FILETYPE_PWF,
+		FILETYPE_TXT => FILETYPE_TXT,
+		FILETYPE_BIOPAX => FILETYPE_BIOPAX,
 	);
 
 	private static $fileTypes = array(
@@ -620,6 +624,8 @@ class Pathway {
 	 * Check if PathVisio-Java can convert from GPML to the given file type
 	 */
 	public static function isConvertableByPathVisio($fileType) {
+		echo 'self::$fileTypesConvertableByPathVisio';
+		var_dump(self::$fileTypesConvertableByPathVisio);
 		return in_array($fileType, array_keys(self::$fileTypesConvertableByPathVisio));
 	}
 
@@ -1139,15 +1145,13 @@ class Pathway {
 					$this->saveSvgCache();
 					break;
 				//*/
+				/*
 				case FILETYPE_PNG:
 					$this->savePngCache();
 					break;
+				//*/
 				default:
-					if (self::isConvertableByPathVisio($fileType)) {
-						$this->saveConvertedByPathVisioCache($fileType);
-					} else {
-						throw new MWException( "Couldn't convert file type: $fileType" );
-					}
+					$this->saveConvertedByPathVisioCache($fileType);
 			}
 		}
 	}
@@ -1234,7 +1238,7 @@ class Pathway {
 		if (self::isConvertableByPathVisio($fileType)) {
 			self::convertWithPathVisio($gpmlFile, $conFile);
 		} else {
-			throw new MWException( "PathVisio couldn't convert this file $fileType" );
+			throw new MWException( "PathVisio couldn't convert file of type \"$fileType\"" );
 		}
 		return $conFile;
 	}

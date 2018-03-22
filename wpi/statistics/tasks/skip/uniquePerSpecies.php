@@ -9,7 +9,11 @@ class UniquePerSpecies {
 		//Create histogram of in how many species each pathway title occurs
 		$speciesPerTitle = array();
 		$pathways = StatPathway::getSnapshot($last);
+		$i = 1;
+		$outof = count($pathways);
 		foreach($pathways as $p) {
+			fwrite(STDOUT, "pathways: $i of $outof\n");
+			$i++;
 			$wp = new Pathway($p->getPwId());
 			$name = $wp->getName();
 			$species = $wp->getSpecies();
@@ -22,7 +26,11 @@ class UniquePerSpecies {
 		}
 
 		$countsPerTitle = array();
+		$i = 1;
+                $outof = count(array_keys($speciesPerTitle));
 		foreach(array_keys($speciesPerTitle) as $name) {
+			fwrite(STDOUT, "speciesPerTitle: $i of $outof\n");
+                        $i++;
 			$countsPerTitle[$name] = count(array_keys($speciesPerTitle[$name]));
 		}
 

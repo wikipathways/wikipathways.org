@@ -1,0 +1,4 @@
+<p>Last update: 2018/03/22</p><h3>Number of pathways: 2677</h3><h3>Number of active users: 644</h3><h3>Number of edits: 39564</h3><ul>
+<li>User edits:<b> 28109</b>
+<li>Automated edits:<b> 11455</b>
+</ul>

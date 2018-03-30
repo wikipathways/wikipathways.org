@@ -1,5 +1,5 @@
 <?php
-require_once( "$IP/wpi/extensions/GPMLConverter/GPMLConverter.php" );
+require_once( "$IP/wpi/extensions/GPMLConverter/src/GPMLConverter.php" );
 require_once( "$IP/wpi/extensions/XrefPanel.php" );
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
@@ -79,6 +79,45 @@ class PathwayPage {
 			"LinkToFullPathwayPage"
 		]
 	);
+	static $sectionNamesByReturnType = array(
+		"html" => [
+			"Diagram",
+			"LinkToFullPathwayPage",
+			"PrivateWarning",
+			"DiagramFooter",
+		],
+		"text" => [
+			"AuthorInfo",
+			"Title",
+			"Description",
+			"Bibliography",
+			"QualityTags",
+			"OntologyTags",
+			"Xrefs",
+			// is History text or other?
+			"History",
+		],
+		"none" => [
+			"Navbars",
+		]
+	);
+
+	static function formatPubMed($text) {
+		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
+		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {
+			foreach($ids[1] as $id) {
+				$text = str_replace($id, "[$link$id $id]", $text);
+			}
+		}
+		return $text;
+	}
+
+	static function getDownloadURL($pathway, $type) {
+		if($pathway->getActiveRevision()) {
+			$oldid = "&oldid={$pathway->getActiveRevision()}";
+		}
+		return WPI_SCRIPT_URL . "?action=downloadFile&type=$type&pwTitle={$pathway->getTitleObject()->getFullText()}{$oldid}";
+	}
 
 	function __construct($pathway) {
 		global $wgMessageCache;
@@ -95,45 +134,20 @@ class PathwayPage {
 				), 'en' );
 			self::$msgLoaded = true;
 		}
-
-		/* TODO keep this for anything?
-		// We only show the "View at WikiPathways" image link when we're not at WikiPathways.
-		if (preg_match("/^.*\.wikipathways\.org$/i", $_SERVER['HTTP_HOST']) == true) {
-		}
-		//*/
-	}
-
-	static function formatPubMed($text) {
-		$link = "http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=Retrieve&dopt=AbstractPlus&list_uids=";
-		if(preg_match_all("/PMID: ([0-9]+)/", $text, $ids)) {
-			foreach($ids[1] as $id) {
-				$text = str_replace($id, "[$link$id $id]", $text);
-			}
-		}
-		return $text;
 	}
 
 	function render() {
-		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets;
+		global $wgServer, $wgScriptPath, $wgOut, $wpiJavascriptSources, $wpiJavascriptSnippets, $wpiEnableOtag;
 
 		$format = isset($_GET["format"]) ? $_GET["format"] : "html";
 		if ($format !== "html") {
 			$wgOut->setArticleBodyOnly(true);
 			header("Access-Control-Allow-Origin: *");
 
-#			$identifier = isset($_GET["identifier"]) ? $_GET["identifier"] : "WP4";
-#			$version = isset($_GET["version"]) ? $_GET["version"] : "0";
-#
-#			$gpml = base64_decode(json_decode(file_get_contents("https://webservice.wikipathways.org/getPathwayAs?fileType=gpml&pwId=$identifier&format=json"))->data);
-#			$gpml_parsed = new SimpleXMLElement($gpml);
-#			$organism = $gpml_parsed['Organism'];
-#
-#			echo GPMLConverter::gpml2pvjson($gpml, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
-
 			$pathway = $this->pathway;
 			if ($format == "json") {
 				$jsonData = $pathway->getPvjson();
-			} else if ($format == "json") {
+			} else if ($format == "svg") {
 				$svg = $pathway->getSvg();
 			}
 		}
@@ -141,44 +155,133 @@ class PathwayPage {
 		$view = $this->view;
 		$enabledSectionNames = self::$sectionNamesByView[$this->view];
 
-		if (!in_array("Navbars", $enabledSectionNames)) {
-			$wgOut->setArticleBodyOnly(true);
-			// the following is needed; the XrefPanel::xref() call above is not sufficient alone.
-			XrefPanel::addXrefPanelScripts();
-			$wgOut->addHTML('<script type="text/javascript">var wgServer="'.$wgServer.'"; var wgScriptPath="'.$wgScriptPath.'";</script>');
-			$wgOut->addHTML('<script type="text/javascript" src="'.$wgServer.'/skins/wikipathways/jquery-1.8.3.min.js"></script>');
-			$wgOut->addHTML('<link rel="stylesheet" href="/skins/wikipathways/main.css?164" type="text/css">');
-			$wgOut->addHTML('<link rel="stylesheet" href="/wpi/js/jquery-ui/jquery-ui-1.8.10.custom.css?164" type="text/css">');
-			foreach($wpiJavascriptSources as $wpiJavascriptSource) {
-				$wgOut->addHTML('<script type="text/javascript" src="'.$wpiJavascriptSource.'"></script>');
-			}
-			foreach($wpiJavascriptSnippets as $wpiJavascriptSnippet) {
-				$wgOut->addHTML('<script type="text/javascript">'.$wpiJavascriptSnippet.'</script>');
-			}
+		if ($wpiEnableOtag !== in_array('OntologyTags', $enabledSectionNames)) {
+			wfDebug('$wpiEnableOtag is '.$wpiEnableOtag.', but current view '.$this->view.' calls for the opposite.');
 		}
 
 		$text = '';
 		$html = '';
 		$sectionNames = self::$sectionNames;
+		$htmlSections = self::$sectionNamesByReturnType["html"];
+		$textSections = self::$sectionNamesByReturnType["text"];
 		foreach($sectionNames as $sectionName) {
-			if (in_array($sectionName, $enabledSectionNames) && method_exists($this, $sectionName)) {
-				#if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {}
-				if (in_array($sectionName, array("Diagram", "PrivateWarning"))) {
-					$html .= $this::$sectionName();
-				} else {
-					$text .= $this::$sectionName();
+			if (method_exists($this, $sectionName)) {
+				$enabled = in_array($sectionName, $enabledSectionNames);
+				$section = $this::$sectionName($enabled);
+				if ($enabled) {
+					if (in_array($sectionName, $htmlSections)) {
+						$html .= $section;
+					} else if (in_array($sectionName, $textSections)) {
+						$text .= $section;
+					}
 				}
 			}
 		}
 
-		$height = $view == "normal" ? "600px" : "100%";
-
+		/*
 		# NOTE: excluding optional tags, as recommended by Google Style Guide:
 		# https://google.github.io/styleguide/htmlcssguide.html#Optional_Tags
 		$diagramContainerString = <<<HTML
 <!DOCTYPE html>
+<!--
 <meta charset="UTF-8">
+-->
+$html
+HTML;
+		//*/
 
+		$wgOut->addHTML($html);
+		return $text;
+	}
+
+	function AuthorInfo($show) {
+		global $wgOut;
+
+		if (!$show) {
+			return '';
+		}
+
+		// TODO this is a kludge. There should be a better way to position this before the diagram.
+		$script = <<<SCRIPT
+<script type="text/javascript">
+window.addEventListener('DOMContentLoaded', function() {
+	jQuery( "#authorInfoContainer" ).insertBefore( $( ".diagram-container" ) );
+});
+</script>
+SCRIPT;
+		$wgOut->addScript($script);
+		return '{{Template:AuthorInfo}}';
+	}
+
+	function Title($show) {
+		if (!$show) {
+			return '';
+		}
+
+		$title = $this->pathway->getName();
+		return "<pageEditor id='pageTitle' type='title'>$title</pageEditor>";
+	}
+
+	function PrivateWarning($show) {
+		global $wgScriptPath, $wgLang;
+
+		if (!$show) {
+			return '';
+		}
+
+		$warn = '';
+		if(!$this->pathway->isPublic()) {
+			$url = SITE_URL;
+			$msg = wfMsg('private_warning');
+
+			$pp = $this->pathway->getPermissionManager()->getPermissions();
+			$expdate = $pp->getExpires();
+			$expdate = $wgLang->date($expdate, true);
+			$msg = str_replace('$DATE', $expdate, $msg);
+			$warn = "<div class='private_warn'>$msg</div>";
+		}
+		return $warn;
+	}
+
+	function QualityTags($show) {
+		if (!$show) {
+			return '';
+		}
+
+		$tags = "\n== Quality Tags ==\n" .
+			"<CurationTags></CurationTags>";
+		return $tags;
+	}
+
+	function Diagram($show) {
+		global $wgUser, $wgRequest, $wgOut;
+
+		if (!$show) {
+			return '';
+		}
+
+		$height = $this->view == "normal" ? "600px" : "100%";
+
+		$pathway = $this->pathway;
+		$jsonData = $pathway->getPvjson();
+		if (!$jsonData) {
+			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
+
+			return <<<HTML
+<div class="diagram-container">
+	<div class="Container">
+		<img src="$pngPath" style="height: inherit;">
+	</div>
+</div>
+<div>
+	<p>Note: Could not render interactive diagram. Displaying static pathway diagram instead.</p>
+</div>
+HTML;
+		}
+
+		$svg = $pathway->getSvg();
+
+		return <<<HTML
 <style type="text/css">
 .diagram-container {
   background: #fefefe;
@@ -210,100 +313,6 @@ class PathwayPage {
   vector-effect: non-scaling-stroke;
 }
 </style>
-$html
-HTML;
-
-		if (!in_array("History", $enabledSectionNames)) {
-			$hideScript = <<<SCRIPT
-<script type="text/javascript">
-	window.addEventListener('DOMContentLoaded', function() {
-		document.querySelectorAll('[name="History"], [name="History"] + h2, [name="History"] + h2 + table, , [name="History"] + h2 + table + form')
-			.forEach(function(el) {
-				el.style.visibility = 'hidden';
-			});
-	});
-</script>
-SCRIPT;
-			$wgOut->addScript($$hideScript);
-		}
-
-
-		#$diagramContainer->loadHTML($diagramContainerString);
-
-		$wgOut->addHTML($diagramContainerString);
-		return $text;
-	}
-
-	function AuthorInfo() {
-		global $wgOut;
-		// TODO this is a kludge. There should be a better way to position this before the diagram.
-		$script = <<<SCRIPT
-<script type="text/javascript">
-window.addEventListener('DOMContentLoaded', function() {
-	jQuery( "#authorInfoContainer" ).insertBefore( $( ".diagram-container" ) );
-});
-</script>
-SCRIPT;
-		$wgOut->addScript($script);
-		return '{{Template:AuthorInfo}}';
-	}
-
-	function Title() {
-		$title = $this->pathway->getName();
-		return "<pageEditor id='pageTitle' type='title'>$title</pageEditor>";
-	}
-
-	function PrivateWarning() {
-		global $wgScriptPath, $wgLang;
-
-		$warn = '';
-		if(!$this->pathway->isPublic()) {
-			$url = SITE_URL;
-			$msg = wfMsg('private_warning');
-
-			$pp = $this->pathway->getPermissionManager()->getPermissions();
-			$expdate = $pp->getExpires();
-			$expdate = $wgLang->date($expdate, true);
-			$msg = str_replace('$DATE', $expdate, $msg);
-			$warn = "<div class='private_warn'>$msg</div>";
-		}
-		return $warn;
-	}
-
-	function QualityTags() {
-		$tags = "\n== Quality Tags ==\n" .
-			"<CurationTags></CurationTags>";
-		return $tags;
-	}
-
-	function Diagram() {
-		global $wgUser, $wgRequest, $wgOut;
-		$pathway = $this->pathway;
-		$jsonData = $pathway->getPvjson();
-		if (!$jsonData) {
-			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
-
-			return <<<HTML
-<div class="diagram-container">
-	<div class="Container">
-		<img src="$pngPath" style="height: inherit;">
-	</div>
-</div>
-<div>
-	<p>Note: Could not render interactive diagram. Displaying static pathway diagram instead.</p>
-</div>
-HTML;
-		}
-
-		$svg = $pathway->getSvg();
-
-		return <<<HTML
-<div class="diagram-container">
-	<div class="Container">
-		$svg
-	</div>
-</div>
-<script type="text/javascript" src="/wpi/extensions/GPMLConverter/pvjs.js"></script>
 <script type="text/javascript">
 	if (window.hasOwnProperty("XrefPanel")) {
 	      XrefPanel.show = function(elm, id, datasource, species, symbol) {
@@ -322,16 +331,32 @@ HTML;
 	      }
 	}
 
-	var pvjsInput = $jsonData;
-	pvjsInput.onReady = function() {};
 	window.addEventListener('load', function() {
-		pvjs.Pvjs(".Container", pvjsInput);
+		var theme;
+		if (!!window.URLSearchParams) {
+			var urlParams = new URLSearchParams(window.location.search);
+			if (!!urlParams && urlParams.get && urlParams.get('theme')) {
+				theme = urlParams.get('theme').replace(/[^a-zA-Z0-9]/, '');
+			}
+		}
+		var jsonData = $jsonData;
+		new Pvjs(".Container", {theme: theme || 'plain', pathway: jsonData.pathway, entitiesById: jsonData.entitiesById, onReady: function() {}});
 	});
 </script>
+<div class="diagram-container">
+	<div class="Container">
+		$svg
+	</div>
+</div>
+<script type="text/javascript" src="/wpi/extensions/GPMLConverter/pvjs.vanilla.js"></script>
 HTML;
 	}
 
-	function Description() {
+	function Description($show) {
+		if (!$show) {
+			return '';
+		}
+
 		//Get WikiPathways description
 		$content = $this->data->getWikiDescription();
 
@@ -366,18 +391,23 @@ HTML;
 	}
 
 
-	function OntologyTags() {
-		global $wpiEnableOtag;
-		if($wpiEnableOtag) {
-			$otags = "\n== Ontology Terms ==\n" .
-				"<OntologyTags></OntologyTags>";
-			return $otags;
+	function OntologyTags($show) {
+		if (!$show) {
+			return '';
 		}
+
+		$otags = "\n== Ontology Terms ==\n" .
+			"<OntologyTags></OntologyTags>";
+		return $otags;
 	}
 
 
-	function Bibliography() {
+	function Bibliography($show) {
 		global $wgUser;
+
+		if (!$show) {
+			return '';
+		}
 
 		$out = "<pathwayBibliography></pathwayBibliography>";
 		//No edit button for now, show help on how to add bibliography instead
@@ -388,19 +418,15 @@ HTML;
 			$help = "{{Template:Help:LiteratureReferences}}";
 		}
 		return "\n== Bibliography ==\n$out\n$help";
-			//"<div id='bibliography'><div style='float:right'>$button</div>\n" .
-			//"$out</div>\n{{#editApplet:bibEdit|bibliography|0||bibliography|0|250px}}";
 	}
 
-	static function getDownloadURL($pathway, $type) {
-		if($pathway->getActiveRevision()) {
-			$oldid = "&oldid={$pathway->getActiveRevision()}";
-		}
-		return WPI_SCRIPT_URL . "?action=downloadFile&type=$type&pwTitle={$pathway->getTitleObject()->getFullText()}{$oldid}";
-	}
-
-	function DiagramFooter() {
+	function DiagramFooter($show) {
 		global $wgOut, $wgUser;
+
+		if (!$show) {
+			return '';
+		}
+
 		$pathway = $this->pathway;
 
 		//Create edit button
@@ -508,22 +534,74 @@ HTML;
 		return $html;
 	}
 
-	function History() {
+	function History($show) {
+		global $wgOut;
+
+		if (!$show) {
+			$hideScript = <<<SCRIPT
+<script type="text/javascript">
+	window.addEventListener('DOMContentLoaded', function() {
+		document.querySelectorAll('[name="History"], [name="History"] + h2, [name="History"] + h2 + table, , [name="History"] + h2 + table + form')
+			.forEach(function(el) {
+				el.style.visibility = 'hidden';
+			});
+	});
+</script>
+SCRIPT;
+			$wgOut->addScript($hideScript);
+			return '';
+		}
+
 		return "\n{{Template:PathwayPage:History}}";
 	}
 
-	function Xrefs() {
+	function Xrefs($show) {
+		if (!$show) {
+			return '';
+		}
 		return "\n{{Template:PathwayPage:Xrefs}}";
 	}
 
-	function LinkToFullPathwayPage() {
+	function LinkToFullPathwayPage($show) {
 		global $wgOut, $wgScriptPath;
+
+		if (!$show) {
+			return '';
+		}
+
 		$pathway = $this->pathway;
-		$wgOut->addHTML('<div style="position:absolute;overflow:visible;bottom:0;left:15px;">' .
-			'<div id="logolink">' .
-			'<a id="wplink" target="top" href="'.$pathway->getFullUrl().'">View at ' .
-			'<img style="border:none" src="' . $wgScriptPath . '/skins/common/images/wikipathways_name.png" /></a>' .
-			'</div>' .
-			'</div>');
+		$fullUrl = $pathway->getFullUrl();
+		$html = <<<HTML
+<div id="link-to-full-pathway-page" style="position:fixed; bottom:10; left:10px; z-index: 9; overflow:visible;">
+	<p id="logolink">
+		<a id="wplink" target="top" href="{$fullUrl}">
+			View at <img style="border:none" src="{$wgScriptPath}/skins/common/images/wikipathways_name.png" />
+		</a>
+	</p>
+</div>
+HTML;
+		return $html;
 	}
+
+	function Navbars($show) {
+		global $wgOut, $wgScriptPath, $wgServer, $wgScriptPath, $wpiJavascriptSources, $wpiJavascriptSnippets;
+
+		if (!$show) {
+			$wgOut->setArticleBodyOnly(true);
+			// the following is needed; the XrefPanel::xref() call above is not sufficient alone.
+			// TODO can we move this to XrefPanel::xref()?
+			XrefPanel::addXrefPanelScripts();
+			$wgOut->addHTML('<script type="text/javascript">var wgServer="'.$wgServer.'"; var wgScriptPath="'.$wgScriptPath.'";</script>');
+			$wgOut->addHTML('<script type="text/javascript" src="'.$wgServer.'/skins/wikipathways/jquery-1.8.3.min.js"></script>');
+			$wgOut->addHTML('<link rel="stylesheet" href="/skins/wikipathways/main.css?164" type="text/css">');
+			$wgOut->addHTML('<link rel="stylesheet" href="/wpi/js/jquery-ui/jquery-ui-1.8.10.custom.css?164" type="text/css">');
+			foreach($wpiJavascriptSources as $wpiJavascriptSource) {
+				$wgOut->addHTML('<script type="text/javascript" src="'.$wpiJavascriptSource.'"></script>');
+			}
+			foreach($wpiJavascriptSnippets as $wpiJavascriptSnippet) {
+				$wgOut->addHTML('<script type="text/javascript">'.$wpiJavascriptSnippet.'</script>');
+			}
+		}
+	}
+
 }

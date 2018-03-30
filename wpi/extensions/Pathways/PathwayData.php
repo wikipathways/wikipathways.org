@@ -63,6 +63,13 @@ class PathwayData {
 						$interaction =  new Interaction($source, $target, $line, $typeRef);
 						$this->interactions[] = $interaction;
 					}
+
+					/*
+					if($source && $target && property_exists($this->byGraphId, $source) && property_exists($this->byGraphId, $target)) {
+						$interaction =  new Interaction($source, $target, $line, $typeRef);
+						$this->interactions[] = $interaction;
+					}
+					//*/
 				}
 			}
 		}
@@ -82,10 +89,13 @@ class PathwayData {
 				$nb = count($points)-1;
 				$endRef = (string)$line->Graphics->Point[1]['GraphRef'];
 				$typeRef = (string)$line->Graphics->Point[$nb]['ArrowHead'];
-				$source = $this->byGraphId[$startRef];
-				$target = $this->byGraphId[$endRef];
-				$interaction =  new Interaction($source, $target, $line, $typeRef);
-				$this->interactions[] = $interaction;
+				if(array_key_exists($startRef, $this->byGraphId) && array_key_exists($endRef, $this->byGraphId)) {
+					$source = $this->byGraphId[$startRef];
+					$target = $this->byGraphId[$endRef];
+					$interaction =  new Interaction($source, $target, $line, $typeRef);
+					$this->interactions[] = $interaction;
+				}
+
 			}
 		}
 		return $this->interactions;

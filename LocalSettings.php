@@ -74,6 +74,7 @@ $wgDBprefix         = "";
 if( !isset( $wpiJavascriptSnippets ) ) $wpiJavascriptSnippets = array();
 if( !isset( $wpiJavascriptSources ) ) $wpiJavascriptSources = array();
 
+
 require_once( "$IP/extensions/ConfirmEdit/ConfirmEdit.php" );
 require_once( "$IP/extensions/ConfirmEdit/QuestyCaptcha.php" );
 $wgCaptchaClass = 'QuestyCaptcha';
@@ -82,6 +83,35 @@ $wgCaptchaClass = 'QuestyCaptcha';
 require_once('pass.php');
 # Load globals
 require_once('wpi/globals.php');
+
+#########################
+# Errors/Debug
+#########################
+
+// Note if $showErrors is false, there's a section at the bottom of
+// this file that disables display of E_NOTICE PHP errors.
+$showErrors = false;
+if ($showErrors) {
+	ini_set('display_errors', 1);
+	ini_set('display_startup_errors', 1);
+	error_reporting(E_ALL);
+	$wgShowExceptionDetails = true;
+	$wgShowSQLErrors = true;
+
+	// Set to true for debugging info.
+	$wgProfiling = true;
+	if ($wgProfiling) {
+		# Use single debug log file for all requests
+		$wgDebugLogFile = WPI_SCRIPT_PATH . '/tmp/wikipathwaysdebug.txt';
+
+		# Use a separate debug log file for each request.
+		/*
+		if ( !defined( "STDIN" ) ) {
+			$wgDebugLogFile .= "-" . $_SERVER['REQUEST_METHOD'] . "-" . urlencode( $_SERVER['REQUEST_URI'] );
+		}
+		//*/
+	}
+}
 
 # Default javascript locations
 //if( !isset( $jsJQuery ) ) $jsJQuery = "$wgScriptPath/skins/wikipathways/jquery-1.8.3.min.js"; //js/jquery/jquery-1.5.1.js";
@@ -326,31 +356,6 @@ $wgGroupPermissions[ 'portal'     ][ 'portal-tlk-edt'        ] = true;
 
 $wgHooks['AbortNewAccount'][] = 'abortOnBadDomain';
 
-#########################
-# Errors/Debug
-#########################
-
-// Note this also controls error_reporting setting at the bottom of this file.
-$showErrors = false;
-if ($showErrors) {
-	$wgShowExceptionDetails = true;
-	$wgShowSQLErrors = true;
-
-	// Set to true for debugging info.
-	$wgProfiling = true;
-	if ($wgProfiling) {
-		# Use single debug log file for all requests
-		$wgDebugLogFile = WPI_SCRIPT_PATH . '/tmp/wikipathwaysdebug.txt';
-
-		# Use a separate debug log file for each request.
-		/*
-		if ( !defined( "STDIN" ) ) {
-			$wgDebugLogFile .= "-" . $_SERVER['REQUEST_METHOD'] . "-" . urlencode( $_SERVER['REQUEST_URI'] );
-		}
-		//*/
-	}
-}
-
 ##New Autoloads
 $wgAutoloadClasses['LegacySpecialPage'] = dirname(__FILE__) . '/wpi/LegacySpecialPage.php';
 
@@ -449,8 +454,4 @@ $wgPathwayRecentSinceDays = 30;
 if (!$showErrors) {
 	// Do not display E_NOTICE PHP errors
 	error_reporting(E_ALL ^ E_NOTICE);  
-} else {
-	ini_set('display_errors', 1);
-	ini_set('display_startup_errors', 1);
-	error_reporting(E_ALL);
 }

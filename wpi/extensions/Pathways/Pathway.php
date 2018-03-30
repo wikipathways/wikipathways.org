@@ -664,6 +664,7 @@ class Pathway {
 	 * \param whether to update the cache (if needed) or not
 	 */
 	public function getFileURL($fileType, $updateCache = true) {
+		global $wgScriptPath;
 		if($updateCache) {
 			$this->updateCache($fileType);
 		}

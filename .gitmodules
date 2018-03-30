@@ -1,3 +1,6 @@
 [submodule "wpi/extensions/GPMLConverter"]
 	path = wpi/extensions/GPMLConverter
 	url = git@github.com:wikipathways/mediawiki-extensions-WikiPathways-GPMLConverter.git
+[submodule "wpi/extensions/PathwayFinder"]
+	path = wpi/extensions/PathwayFinder
+	url = https://github.com/wikipathways/pathway-finder.git

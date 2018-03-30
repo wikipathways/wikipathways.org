@@ -31,8 +31,13 @@ abstract class BasePathwaysPager extends AlphabeticPager {
 			&& filesize( $path ) < 20480 ) { /* 20k is probably too much */
 			$c = file_get_contents( $path );
 			return "data:" . $img->getMimeType() . ";base64," . base64_encode( $c );
+		} else {
+			#var_dump($img);
+			#return $img->thumb->getThumbUrl( $suffix );
+			#echo $img->newFromTitle();
+			#return "data:;base64," . base64_encode( '' );
+			#throw new MWException( "Missing thumb" );
 		}
-		return $thumb->getThumbUrl( $suffix );
 	}
 
 	public function hasRecentEdit( $title ) {

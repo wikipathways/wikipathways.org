@@ -1,6 +1,8 @@
 [submodule "wpi/extensions/GPMLConverter"]
 	path = wpi/extensions/GPMLConverter
 	url = git@github.com:wikipathways/mediawiki-extensions-WikiPathways-GPMLConverter.git
+	ignore = dirty
 [submodule "wpi/extensions/PathwayFinder"]
 	path = wpi/extensions/PathwayFinder
 	url = https://github.com/wikipathways/pathway-finder.git
+	ignore = dirty

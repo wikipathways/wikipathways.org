@@ -7,10 +7,7 @@ class CollectionCounts {
 		$collectionCounts = array();
 		$collections = array(
 			"Curation:FeaturedPathway",
-			"Curation:AnalysisCollection",
-			"Curation:CIRM_Related",
-			"Curation:Wikipedia",
-			"Curation:Reactome_Approved"
+			"Curation:AnalysisCollection"
 		);
 
 		foreach($times as $tsCurr) {

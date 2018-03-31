@@ -26,7 +26,8 @@ chdir($dir);
 /* Extract the statistics */
 $basedir = dirname(__FILE__);
 
-$startY = 2008;
+$curYear = date('Y', wfTimestamp(TS_UNIX, $tsCurr));
+$startY = $curYear - 5;
 $startM = 1;
 $startD = 1;
 

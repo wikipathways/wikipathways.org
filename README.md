@@ -3,6 +3,8 @@ Current Repository for the WikiPathways Web Site
 [![jenkins tests](https://img.shields.io/jenkins/t/https/jenkins.bigcat.unimaas.nl/job/Website%20Monitoring.svg?label=website%20monitoring)](https://jenkins.bigcat.unimaas.nl/job/Website%20Monitoring/)
 [![jenkins tests](https://img.shields.io/jenkins/s/https/jenkins.bigcat.unimaas.nl/job/PathVisio.svg?label=pathvisio)](https://jenkins.bigcat.unimaas.nl/job/PathVisio/)
 [![jenkins tests](https://img.shields.io/jenkins/s/https/jenkins.bigcat.unimaas.nl/job/rwikipathways.svg?label=rwikipathways)](https://jenkins.bigcat.unimaas.nl/job/rwikipathways/)
+[![Twitter Follow](https://img.shields.io/twitter/follow/wikipathways.svg?style=social&label=Follow)](https://twitter.com/WikiPathways)
+
 
 This repository contains the code and development history of the main web site for the WikiPathways project:
 [wikipathways.org](http://wikipathways.org). Built upon MediaWiki, 

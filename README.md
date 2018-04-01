@@ -1,5 +1,6 @@
 Current Repository for the WikiPathways Web Site
 ====
+[![Uptime Robot status](https://img.shields.io/uptimerobot/status/m780193281-c9339e7410457c4e59bd8962.svg)](https://uptimerobot.com/dashboard#780193281)
 [![jenkins tests](https://img.shields.io/jenkins/t/https/jenkins.bigcat.unimaas.nl/job/Website%20Monitoring.svg?label=website%20monitoring)](https://jenkins.bigcat.unimaas.nl/job/Website%20Monitoring/)
 [![jenkins tests](https://img.shields.io/jenkins/s/https/jenkins.bigcat.unimaas.nl/job/PathVisio.svg?label=pathvisio)](https://jenkins.bigcat.unimaas.nl/job/PathVisio/)
 [![jenkins tests](https://img.shields.io/jenkins/s/https/jenkins.bigcat.unimaas.nl/job/rwikipathways.svg?label=rwikipathways)](https://jenkins.bigcat.unimaas.nl/job/rwikipathways/)

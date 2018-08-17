@@ -3,6 +3,8 @@ $dir = getcwd();
 chdir(dirname(realpath(__FILE__)) . "/../../");
 require_once('OntologyCache.php');
 chdir($dir);
+error_reporting( E_ALL & ~E_DEPRECATED );
+ini_set( 'display_errors', 1 );
 
 class OntologyFunctions
 {
@@ -82,28 +84,34 @@ class OntologyFunctions
 	}
 
 	public static function getOntologyTags($pwId) {
-		$count = 0;
-		$title = $pwId;
-		$resultArray = array();
-		$dbr =& wfGetDB(DB_SLAVE);
-		#$query = "SELECT * FROM `ontology` " . "WHERE `pw_id` = '$title' ORDER BY `ontology`";
-		#$res = $dbr->query($query);
-		## Replacing with parameterized SQL to resolve critical security issue
-		$res = $dbr->select('ontology', '*', array('pw_id' => $title), __METHOD__, array('ORDER BY' => 'ontology'));
+		$resultArray = [];
+		$pathTitle = Title::newFromText( $pwId, NS_PATHWAY );
+		$pathway = Pathway::newFromTitle( $pathTitle );
+		$gpml = $pathway->getGpml();
+		$xml = simplexml_load_string( $gpml );
+		$xml->registerXPathNamespace( "gpml", "http://pathvisio.org/GPML/2013a" );
+		$xml->registerXPathNamespace( "bp", "http://www.biopax.org/release/biopax-level3.owl#" );
 
-		$path = "";
-
-		while($row = $dbr->fetchObject($res)) {
-			$term['term_id'] = $row->term_id;
-			$term['term'] = $row->term;
-			$term['ontology'] = $row->ontology;
-			$resultArray['Resultset'][]=$term;
-			$count++;
+		$entry = $xml->Biopax[0];
+		$namespaces = $entry->getNameSpaces( true );
+		$bpNS = $entry->children( $namespaces['bp'] );
+		$total = count( $bpNS->openControlledVocabulary );
+		
+		for ( $i = 0; $i < $total; $i++ ) {
+			$otagCounter = $i+1;
+			$term_id = $xml->xpath("/gpml:Pathway/gpml:Biopax/bp:openControlledVocabulary[position()=$otagCounter]/bp:ID");
+			$term = $xml->xpath("/gpml:Pathway/gpml:Biopax/bp:openControlledVocabulary[position()=$otagCounter]/bp:TERM");
+			$onto = $xml->xpath("/gpml:Pathway/gpml:Biopax/bp:openControlledVocabulary[position()=$otagCounter]/bp:Ontology");
+			$resultArray['Resultset'][] = (object)[
+				'term_id' => (string)$term_id[0],
+				'term' => (string)$term[0],
+				'ontology'=> (string)$onto[0]
+			];
+			
 		}
-		$dbr->freeResult( $res );
 		$resultJSON = json_encode($resultArray);
 
-		return $resultJSON ;
+		return $resultJSON;
 	}
 
 	public static function getOntologyTagPath($id) {

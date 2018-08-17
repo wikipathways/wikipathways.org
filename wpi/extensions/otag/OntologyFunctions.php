@@ -3,8 +3,7 @@ $dir = getcwd();
 chdir(dirname(realpath(__FILE__)) . "/../../");
 require_once('OntologyCache.php');
 chdir($dir);
-error_reporting( E_ALL & ~E_DEPRECATED );
-ini_set( 'display_errors', 1 );
+
 
 class OntologyFunctions
 {

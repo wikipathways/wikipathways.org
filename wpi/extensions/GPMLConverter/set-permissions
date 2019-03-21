@@ -1,8 +1,0 @@
-#! /usr/bin/env bash
-
-# cd to /var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter and then
-# run this as: sudo -i $(pwd)/set-permissions
-
-chown -R www-data:wp-devs "/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/"
-chmod -R g+rwx "/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/"
-chmod -R u+rx-w "/var/www/dev.wikipathways.org/wpi/extensions/GPMLConverter/"

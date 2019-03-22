@@ -315,8 +315,7 @@ HTML;
 	var pvjsInput = $jsonData;
 	pvjsInput.onReady = function() {};
 	window.addEventListener('load', function() {
-		var pvjs = new Pvjs(".Container", pvjsInput)
-		pvjs.render()
+		new Pvjs(".Container", pvjsInput)
 	});
 </script>
 HTML;

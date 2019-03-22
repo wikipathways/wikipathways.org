@@ -4,7 +4,6 @@ require_once('PathwayData.php');
 require_once('MetaDataCache.php');
 #require_once(dirname( __FILE__ ) . "/../GPMLConverter/src/Converter.php");
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/src/Converter.php");
-# find /var/www/wikipathways/images/ -wholename "*images/[0-9]*/*/WP34*_*.svg"
 // TODO why don't the following work?
 //require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
 //require_once("../GPMLConverter/GPMLConverter.php");

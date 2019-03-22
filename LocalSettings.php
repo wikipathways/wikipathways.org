@@ -68,7 +68,7 @@ $wgEmailAuthentication = true;
 
 $wgDBtype           = "mysql";
 $wgDBserver         = "localhost";
-$wgDBport           = "5432";
+$wgDBport           = "3306"; #"5432";
 $wgDBprefix         = "";
 
 if( !isset( $wpiJavascriptSnippets ) ) $wpiJavascriptSnippets = array();

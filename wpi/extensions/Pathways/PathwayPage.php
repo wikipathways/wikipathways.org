@@ -269,6 +269,7 @@ SCRIPT;
 	function Diagram() {
 		global $wgUser, $wgRequest, $wgOut;
 		$pathway = $this->pathway;
+		$svg = $pathway->getSvg();
 		$jsonData = $pathway->getPvjson();
 		if (!$jsonData) {
 			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
@@ -284,8 +285,6 @@ SCRIPT;
 </div>
 HTML;
 		}
-
-		$svg = $pathway->getSvg();
 
 		return <<<HTML
 <div class="diagram-container">

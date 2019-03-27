@@ -2,11 +2,12 @@
 require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
-#require_once(dirname( __FILE__ ) . "/../GPMLConverter/src/Converter.php");
 require_once(dirname( __FILE__ ) . "/../GPMLConverter/src/Converter.php");
-// TODO why don't the following work?
-//require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
-//require_once("../GPMLConverter/GPMLConverter.php");
+// TODO why doesn't the following work?
+#require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
+
+use WikiPathways\GPML\Converter as Converter;
+
 
 /**
 Class that represents a Pathway on WikiPathways
@@ -556,28 +557,13 @@ class Pathway {
 	 */
 	public function getPvjson() {
 		wfDebug("getPvjson() called\n");
-
-		if(isset($this->pvjson)) {
-			return $this->pvjson;
+		$fileType = FILETYPE_JSON;
+		$path = $this->getFileLocation($fileType, true);
+		if ($path && file_exists($path)) {
+			return file_get_contents($path);
+		} else {
+			throw new MWException( "GPMLConverter couldn't convert this file $fileType" );
 		}
-
-		$gpml_path = $this->getFileLocation(FILETYPE_GPML, false);
-		$identifier = $this->getIdentifier();
-		$version = $this->getActiveRevision();
-		$organism=$this->getSpecies();
-
-		$pvjson_path = $this->getFileLocation(FILETYPE_JSON, false);
-		if ($pvjson_path && file_exists($pvjson_path)) {
-			return file_get_contents($pvjson_path);
-		}
-
-		WikiPathways\GPML\Converter::convert($gpml_path, $pvjson_path, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
-		$pvjson = '';
-		if ($pvjson_path && file_exists($pvjson_path)) {
-			$pvjson = file_get_contents($pvjson_path);
-		}
-		$this->pvjson = $pvjson;
-		return $pvjson;
 	}
 
 	/**
@@ -586,28 +572,13 @@ class Pathway {
 	 */
 	public function getSvg() {
 		wfDebug("getSvg() called\n");
-
-		if(isset($this->svg)) {
-			return $this->svg;
+		$fileType = FILETYPE_IMG;
+		$path = $this->getFileLocation($fileType, true);
+		if ($path && file_exists($path)) {
+			return file_get_contents($path);
+		} else {
+			throw new MWException( "GPMLConverter couldn't convert this file $fileType" );
 		}
-
-		$gpml_path = $this->getFileLocation(FILETYPE_GPML, false);
-		$identifier = $this->getIdentifier();
-		$version = $this->getActiveRevision();
-		$organism=$this->getSpecies();
-
-		$svg_path = $this->getFileLocation(FILETYPE_IMG, false);
-		if ($svg_path && file_exists($svg_path)) {
-			return file_get_contents($svg_path);
-		}
-
-		WikiPathways\GPML\Converter::convert($gpml_path, $svg_path, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism, "static"=>false));
-		$svg = '';
-		if ($svg_path && file_exists($svg_path)) {
-			$svg = file_get_contents($svg_path);
-		}
-		$this->svg = $svg;
-		return $svg;
 	}
 
 	/**
@@ -1212,7 +1183,8 @@ class Pathway {
 		$organism=$this->getSpecies();
 
 		if (self::isValidFileType($fileType)) {
-			WikiPathways\GPML\Converter::convert($gpmlFile, $conFile, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism, "static"=>false));
+			$converter = new Converter($identifier, $format=$fileType);
+			$converter::convert($gpmlFile, $conFile, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism, "static"=>false));
 		} else {
 			throw new MWException( "GPMLConverter couldn't convert this file $fileType" );
 		}

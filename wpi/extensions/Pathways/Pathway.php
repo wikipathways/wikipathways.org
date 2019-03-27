@@ -2,12 +2,10 @@
 require_once('Organism.php');
 require_once('PathwayData.php');
 require_once('MetaDataCache.php');
-require_once(dirname( __FILE__ ) . "/../GPMLConverter/src/Converter.php");
-// TODO why doesn't the following work?
-#require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
-
-use WikiPathways\GPML\Converter as Converter;
-
+require_once(dirname( __FILE__ ) . "/../GPMLConverter/GPMLConverter.php");
+// TODO why don't the following work?
+//require_once("$IP/extensions/GPMLConverter/GPMLConverter.php");
+//require_once("../GPMLConverter/GPMLConverter.php");
 
 /**
 Class that represents a Pathway on WikiPathways
@@ -15,6 +13,15 @@ Class that represents a Pathway on WikiPathways
 class Pathway {
 	public static $ID_PREFIX = 'WP';
 	public static $DELETE_PREFIX = "Deleted pathway: ";
+
+	private static $fileTypesConvertableByPathVisio = array(
+		# TODO: svg is convertable by PathVisio, but we're
+		# using gpml2pvjson instead. Can we still have it
+		# defined here?
+		FILETYPE_IMG => FILETYPE_IMG,
+		FILETYPE_GPML => FILETYPE_GPML,
+		FILETYPE_PNG => FILETYPE_PNG,
+	);
 
 	private static $fileTypes = array(
 		FILETYPE_GPML => FILETYPE_GPML,
@@ -557,13 +564,25 @@ class Pathway {
 	 */
 	public function getPvjson() {
 		wfDebug("getPvjson() called\n");
-		$fileType = FILETYPE_JSON;
-		$path = $this->getFileLocation($fileType, true);
-		if ($path && file_exists($path)) {
-			return file_get_contents($path);
-		} else {
-			throw new MWException( "GPMLConverter couldn't convert this file $fileType" );
+
+		if(isset($this->pvjson)) {
+			return $this->pvjson;
 		}
+
+		$filepath = $this->getFileLocation(FILETYPE_JSON, false);
+		if ($filepath && file_exists($filepath)) {
+			return file_get_contents($filepath);
+		}
+
+		$gpml_path = $this->getFileLocation(FILETYPE_GPML, false);
+		$identifier = $this->getIdentifier();
+		$version = $this->getActiveRevision();
+		$organism=$this->getSpecies();
+
+		$pvjson=GPMLConverter::gpml2pvjson(file_get_contents($gpml_path), array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
+		$this->pvjson = $pvjson;
+		$this->savePvjsonCache();
+		return $pvjson;
 	}
 
 	/**
@@ -572,13 +591,27 @@ class Pathway {
 	 */
 	public function getSvg() {
 		wfDebug("getSvg() called\n");
-		$fileType = FILETYPE_IMG;
-		$path = $this->getFileLocation($fileType, true);
-		if ($path && file_exists($path)) {
-			return file_get_contents($path);
-		} else {
-			throw new MWException( "GPMLConverter couldn't convert this file $fileType" );
+
+		if(isset($this->svg)) {
+			return $this->svg;
 		}
+
+		$filepath = $this->getFileLocation(FILETYPE_IMG, false);
+		if ($filepath && file_exists($filepath)) {
+			return file_get_contents($filepath);
+		}
+
+		$pvjson = $this->getPvjson();
+		$svg = GPMLConverter::pvjson2svg($pvjson, array("static"=>false));
+		$this->svg = $svg;
+		return $svg;
+	}
+
+	/**
+	 * Check if PathVisio-Java can convert from GPML to the given file type
+	 */
+	public static function isConvertableByPathVisio($fileType) {
+		return in_array($fileType, array_keys(self::$fileTypesConvertableByPathVisio));
 	}
 
 	/**
@@ -1086,14 +1119,27 @@ class Pathway {
 		if($this->isOutOfDate($fileType)) {
 			wfDebug("\t->Updating cached file for $fileType\n");
 			switch($fileType) {
+				case FILETYPE_PNG:
+					$this->savePngCache();
+					break;
 				case FILETYPE_GPML:
 					$this->saveGpmlCache();
 					break;
-				case self::isValidFileType($fileType):
-					$this->saveConverted($fileType);
+				case FILETYPE_JSON:
+					$this->savePvjsonCache();
+					break;
+				/*
+				case FILETYPE_IMG:
+					$this->saveSvgCache();
+					break;
+				//*/
+				case self::isConvertableByPathVisio($fileType):
+					$this->saveConvertedByPathVisioCache($fileType);
 					break;
 				default:
 					throw new MWException( "Couldn't convert file type: $fileType" );
+					#$this->saveConvertedByPathVisioCache($fileType);
+					#break;
 			}
 		}
 	}
@@ -1166,9 +1212,9 @@ class Pathway {
 
 	/**
 	 * Save a cached version of a filetype to be converted
-	 * from GPML.
+	 * from GPML, when the conversion is done by PathVisio.
 	 */
-	private function saveConverted($fileType) {
+	private function saveConvertedByPathVisioCache($fileType) {
 		# Convert gpml to fileType
 		$gpmlFile = realpath($this->getFileLocation(FILETYPE_GPML));
 		wfDebug( "Saving $gpmlFile to $fileType" );
@@ -1177,19 +1223,39 @@ class Pathway {
 		if ( !is_dir( $dir ) && !wfMkdirParents( $dir ) ) {
 			throw new MWException( "Couldn't make directory: $dir" );
 		}
-
-		$identifier = $this->getIdentifier();
-		$version = $this->getActiveRevision();
-		$organism=$this->getSpecies();
-
-		if (self::isValidFileType($fileType)) {
-			$converter = new Converter($identifier, $format=$fileType);
-			$converter::convert($gpmlFile, $conFile, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism, "static"=>false));
+		if (self::isConvertableByPathVisio($fileType)) {
+			self::convertWithPathVisio($gpmlFile, $conFile);
 		} else {
-			throw new MWException( "GPMLConverter couldn't convert this file $fileType" );
+			throw new MWException( "PathVisio couldn't convert this file $fileType" );
 		}
-
 		return $conFile;
+	}
+
+	/**
+	 * Convert the given GPML file to another
+	 * file format, using PathVisio-Java. The file format will be determined by the
+	 * output file extension.
+	 */
+	public static function convertWithPathVisio($gpmlFile, $outFile) {
+		global $wgMaxShellMemory;
+
+		$gpmlFile = realpath($gpmlFile);
+
+		$basePath = WPI_SCRIPT_PATH;
+		$maxMemoryM = intval($wgMaxShellMemory / 1024); //Max script memory on java program in megabytes
+		$cmd = "java -Xmx{$maxMemoryM}M -jar $basePath/bin/pathvisio_core.jar \"$gpmlFile\" \"$outFile\" 2>&1";
+		wfDebug("CONVERTER: $cmd\n");
+		$msg = wfJavaExec($cmd, $status);
+
+		if($status != 0 ) {
+			//Not needed anymore, since we now use a unique file name for
+			//each revision, so it's guaranteed to update.
+			////Remove cached GPML file
+			//unlink($gpmlFile);
+			throw new Exception("Unable to convert to $outFile:\n<BR>Status:$status\n<BR>Message:$msg\n<BR>Command:$cmd<BR>");
+			wfDebug("Unable to convert to $outFile:\n<BR>Status:$status\n<BR>Message:$msg\n<BR>Command:$cmd<BR>");
+		}
+		return true;
 	}
 
 	private function saveGpmlCache() {
@@ -1200,5 +1266,70 @@ class Pathway {
 			writeFile($file, $gpml);
 			wfDebug( "GPML CACHE SAVED: $file" );
 		}
+	}
+
+	private function savePvjsonCache() {
+		wfDebug("savePvjsonCache() called\n");
+		//This function is always called when GPML is converted to pvjson; which is not the case for SVG.
+		$pvjson=$this->pvjson;
+		if (!$pvjson)
+			$pvjson = $this->getPvjson();
+		if (!$pvjson) 
+			throw new MWException( "Invalid pvjson, so cannot savePvjsonCache." );
+		$file = $this->getFileLocation(FILETYPE_JSON, false);
+		writeFile($file, $pvjson);
+		$ex = file_exists($file);
+		if (!$ex) {
+			throw new Exception("Unable to save pvjson");
+		}
+		wfDebug("PVJSON CACHE SAVED: $file, $ex;\n");
+	}
+
+	private function saveSvgCache() {
+		wfDebug("saveSvgCache() called\n");
+		$gpml_path = $this->getFileLocation(FILETYPE_GPML, false);
+		if (!$gpml_path || !file_exists($gpml_path)) {
+			throw new MWException( "saveSvgCache() failed: GPML unavailable." );
+		}
+		$svg = $this->getSvg();
+		if (!$svg) {
+			throw new Exception("Unable to convert to svg");
+		}
+		$file = $this->getFileLocation(FILETYPE_IMG, false);
+		writeFile($file, $svg);
+		$ex = file_exists($file);
+		if (!$ex) {
+			throw new Exception("Unable to save svg");
+		}
+		wfDebug("SVG CACHE SAVED: $file, $ex;\n");
+	}
+
+	private function savePngCache() {
+		wfDebug("savePngCache() called\n");
+		global $wgSVGConverters, $wgSVGConverter, $wgSVGConverterPath;
+
+		$input = $this->getFileLocation(FILETYPE_IMG, false);
+		$output = $this->getFileLocation(FILETYPE_PNG, false);
+
+		$width = 1000;
+		$retval = 0;
+		if(isset($wgSVGConverters[$wgSVGConverter])) {
+			$cmd = str_replace( //TODO: calculate proper height for rsvg
+				array( '$path/', '$width', '$input', '$output' ),
+				array( $wgSVGConverterPath ? wfEscapeShellArg( "$wgSVGConverterPath/" ) : "",
+					intval( $width ),
+					wfEscapeShellArg( $input ),
+					wfEscapeShellArg( $output ) ),
+				$wgSVGConverters[$wgSVGConverter] ) . " 2>&1";
+			$err = wfShellExec( $cmd, $retval );
+			if($retval != 0 || !file_exists($output)) {
+				throw new Exception("Unable to convert to png: $err\nCommand: $cmd");
+
+			}
+		} else {
+			throw new Exception("Unable to convert to png, no SVG rasterizer found");
+		}
+		$ex = file_exists($output);
+		wfDebug("PNG CACHE SAVED: $output, $ex;\n");
 	}
 }

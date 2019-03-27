@@ -1,4 +1,5 @@
 <?php
+require_once( "$IP/wpi/extensions/GPMLConverter/GPMLConverter.php" );
 require_once( "$IP/wpi/extensions/XrefPanel.php" );
 
 $wgHooks['ParserBeforeStrip'][] = array('renderPathwayPage');
@@ -119,6 +120,15 @@ class PathwayPage {
 		if ($format !== "html") {
 			$wgOut->setArticleBodyOnly(true);
 			header("Access-Control-Allow-Origin: *");
+
+#			$identifier = isset($_GET["identifier"]) ? $_GET["identifier"] : "WP4";
+#			$version = isset($_GET["version"]) ? $_GET["version"] : "0";
+#
+#			$gpml = base64_decode(json_decode(file_get_contents("https://webservice.wikipathways.org/getPathwayAs?fileType=gpml&pwId=$identifier&format=json"))->data);
+#			$gpml_parsed = new SimpleXMLElement($gpml);
+#			$organism = $gpml_parsed['Organism'];
+#
+#			echo GPMLConverter::gpml2pvjson($gpml, array("identifier"=>$identifier, "version"=>$version, "organism"=>$organism));
 
 			$pathway = $this->pathway;
 			if ($format == "json") {
@@ -269,7 +279,6 @@ SCRIPT;
 	function Diagram() {
 		global $wgUser, $wgRequest, $wgOut;
 		$pathway = $this->pathway;
-		$svg = $pathway->getSvg();
 		$jsonData = $pathway->getPvjson();
 		if (!$jsonData) {
 			$pngPath = $pathway->getFileURL(FILETYPE_PNG, false);
@@ -286,13 +295,15 @@ SCRIPT;
 HTML;
 		}
 
+		$svg = $pathway->getSvg();
+
 		return <<<HTML
 <div class="diagram-container">
 	<div class="Container">
 		$svg
 	</div>
 </div>
-<script type="text/javascript" src="/wpi/extensions/GPMLConverter/modules/pvjs.vanilla.js"></script>
+<script type="text/javascript" src="/wpi/js/pvjs/pvjs.js"></script>
 <script type="text/javascript">
 	if (window.hasOwnProperty("XrefPanel")) {
 	      XrefPanel.show = function(elm, id, datasource, species, symbol) {
@@ -314,7 +325,7 @@ HTML;
 	var pvjsInput = $jsonData;
 	pvjsInput.onReady = function() {};
 	window.addEventListener('load', function() {
-		new Pvjs(".Container", pvjsInput)
+		pvjs.Pvjs(".Container", pvjsInput);
 	});
 </script>
 HTML;

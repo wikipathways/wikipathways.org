@@ -39,3 +39,9 @@ curl "https://cdn.rawgit.com/wikipathways/pvjs/e47ff1f6/test/input-data/troubles
 bridgedb xrefs "Human" "Ensembl" "ENSG00000111186"
 pvjs json2svg "WP1818_73650.json"
 ```
+
+To clear old data:
+```
+find /var/www/wikipathways/images/ -wholename "*images/[0-9a-zA-Z]/[0-9a-zA-Z][0-9a-zA-Z]/*WP*_*[0-9].json"
+find /var/www/wikipathways/images/ -wholename "*images/[0-9a-zA-Z]/[0-9a-zA-Z][0-9a-zA-Z]/*WP*_*[0-9].*svg"
+```

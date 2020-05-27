@@ -58,6 +58,7 @@ class PathwayBibliography {
 				$l = new Linker();
 				$out .= ' '. $l->makeExternalLink( 'http://www.ncbi.nlm.nih.gov/pubmed/' . $xref->ID, "PubMed" );
 				$out .= ' '. $l->makeExternalLink( 'https://europepmc.org/abstract/MED/' . $xref->ID, "Europe PMC" );
+				$out .= ' '. $l->makeExternalLink( 'https://scholia.toolforge.org/pubmed/' . $xref->ID, "Scholia" );
 			}
 		}
 
